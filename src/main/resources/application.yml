@@ -1,9 +1,2 @@
-#
-# Simple Spring Security
-#
-spring:
-  security:
-    user:
-      name: batman
-      password: 123456
+
 
