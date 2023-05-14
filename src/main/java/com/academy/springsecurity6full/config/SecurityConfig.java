@@ -2,7 +2,6 @@ package com.academy.springsecurity6full.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -14,7 +13,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
 	@Bean
@@ -22,6 +21,7 @@ public class SecurityConfig {
 
 		http.authorizeHttpRequests(configure ->
 			configure
+					.requestMatchers( "api/**" ).hasAnyRole( "MANAGER","EMPLOYEE","ADMIN" )
 					// allow do acess to lougout default
 					.requestMatchers( "/logout" ).permitAll()
 		);
@@ -32,6 +32,8 @@ public class SecurityConfig {
 		// disable csrf
 		http.csrf().disable();
 
+		http.cors().disable();
+
 		//Enable form to login
 		http.formLogin( Customizer.withDefaults());
 
@@ -41,10 +43,9 @@ public class SecurityConfig {
 		return http.build();
 	}
 
-
 	/**
 	 * Criando usuario em com encode de passaword default
-	 */
+    */
 
 	@Bean
 	public InMemoryUserDetailsManager userDetailsManager(){
@@ -72,9 +73,7 @@ public class SecurityConfig {
 
 
 	//Criando usuario em com encode de passaword text
-
-	/**
-	 *
+    /**
 	@Bean
 	public InMemoryUserDetailsManager userDetailsManager(){
 		UserDetails john = User.builder()
@@ -96,9 +95,7 @@ public class SecurityConfig {
 								.build();
 		return new InMemoryUserDetailsManager(john, mary, susan);
 	 }
-
-	 */
-
+     */
 
 	//Criando usuario em com encode de passaword bcrypt
 
