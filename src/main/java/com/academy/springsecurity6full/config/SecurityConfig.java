@@ -6,8 +6,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,6 +17,8 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @RequiredArgsConstructor
+@EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
 	private final UserDetailsServiceImpl userDetailsService;
@@ -28,13 +32,7 @@ public class SecurityConfig {
 						config.requestMatchers( "/logout" ).permitAll()
 						      .requestMatchers( "/h2-console/**" ).permitAll()
 						      .requestMatchers( "/h2-console" ).permitAll()
-
 							  //* AS Roles dever ser salvas no bando de dados no formado "ROLE_" ex: ROLE_ADMIN
-							  .requestMatchers( HttpMethod.GET,    "/api/employees"   ).hasRole("EMPLOYEE")
-							  .requestMatchers( HttpMethod.GET,    "/api/employees/**").hasRole("EMPLOYEE")
-							  .requestMatchers( HttpMethod.POST,   "/api/employees"   ).hasRole("MANAGER")
-							  .requestMatchers( HttpMethod.PUT,    "/api/employees"   ).hasRole("MANAGER")
-							  .requestMatchers( HttpMethod.DELETE, "/api/employees/**").hasRole("ADMIN")
 						.anyRequest().authenticated());
 
 		http.userDetailsService( userDetailsService );
