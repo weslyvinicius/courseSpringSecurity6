@@ -35,8 +35,6 @@ public class SecurityConfig {
 							  //* AS Roles dever ser salvas no bando de dados no formado "ROLE_" ex: ROLE_ADMIN
 						.anyRequest().authenticated());
 
-		http.userDetailsService( userDetailsService );
-
 		http.formLogin(Customizer.withDefaults() );
 		http.httpBasic();
 
