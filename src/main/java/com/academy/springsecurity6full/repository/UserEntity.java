@@ -8,21 +8,29 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 
 @Entity
-@Table(name = "customer_user")
+@Table(name = "tb_user")
 @Data
 public class UserEntity implements UserDetails {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
+	@Column(name = "user_id")
 	private Long id;
 
 	private String name;
 
 	private String password;
 
+	@ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+	@JoinTable(name = "tb_users_authority",
+			joinColumns = @JoinColumn(name = "user_id"),
+			inverseJoinColumns = @JoinColumn(name = "authority_id"))
+	private Collection<UserAuthorities> authorities;
 
-	@Override public Collection<? extends GrantedAuthority> getAuthorities() {
-		return null;
+
+	@Override
+	public Collection<? extends GrantedAuthority> getAuthorities() {
+		return this.authorities;
 	}
 
 	@Override public String getPassword() {

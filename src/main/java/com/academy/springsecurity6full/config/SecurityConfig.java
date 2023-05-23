@@ -4,6 +4,7 @@ import com.academy.springsecurity6full.repository.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -27,6 +28,13 @@ public class SecurityConfig {
 						config.requestMatchers( "/logout" ).permitAll()
 						      .requestMatchers( "/h2-console/**" ).permitAll()
 						      .requestMatchers( "/h2-console" ).permitAll()
+
+							  //* AS Roles dever ser salvas no bando de dados no formado "ROLE_" ex: ROLE_ADMIN
+							  .requestMatchers( HttpMethod.GET,    "/api/employees"   ).hasRole("EMPLOYEE")
+							  .requestMatchers( HttpMethod.GET,    "/api/employees/**").hasRole("EMPLOYEE")
+							  .requestMatchers( HttpMethod.POST,   "/api/employees"   ).hasRole("MANAGER")
+							  .requestMatchers( HttpMethod.PUT,    "/api/employees"   ).hasRole("MANAGER")
+							  .requestMatchers( HttpMethod.DELETE, "/api/employees/**").hasRole("ADMIN")
 						.anyRequest().authenticated());
 
 		http.userDetailsService( userDetailsService );
