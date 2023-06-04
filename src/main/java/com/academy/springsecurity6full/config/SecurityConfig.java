@@ -1,6 +1,7 @@
 package com.academy.springsecurity6full.config;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -16,15 +17,17 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+	@Value( "${security.unprotected-endpoints}" )
+	private String [] authWhitelist;
+
 	@Bean
 	public SecurityFilterChain mySecurityFilterChain( HttpSecurity http ) throws Exception {
 
 		http.csrf().disable();
 
 		http.authorizeHttpRequests( config ->
-						config.requestMatchers( "/h2-console/**" ).permitAll()
-						      .requestMatchers( "/h2-console" ).permitAll()
-						.anyRequest().authenticated());
+				                    config.requestMatchers( authWhitelist ).permitAll()
+						                  .anyRequest().authenticated());
 
 		http.oauth2ResourceServer().jwt();
 		http.sessionManagement().sessionCreationPolicy( SessionCreationPolicy.STATELESS);
