@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -18,7 +19,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
 	@Value( "${security.unprotected-endpoints}" )
-	private String [] authWhitelist;
+	private String[] authWhitelist;
 
 	@Bean
 	public SecurityFilterChain mySecurityFilterChain( HttpSecurity http ) throws Exception {
@@ -26,16 +27,18 @@ public class SecurityConfig {
 		http.csrf().disable();
 
 		http.authorizeHttpRequests( config ->
-				                    config.requestMatchers( authWhitelist ).permitAll()
-						                  .anyRequest().authenticated());
+				config.requestMatchers( authWhitelist ).permitAll()
+					  .requestMatchers( HttpMethod.GET, "/api/employees" ).hasRole( "EMPLOYEE" )
+					  .requestMatchers( HttpMethod.GET, "/api/employees/**" ).hasRole( "EMPLOYEE" )
+					  .requestMatchers( HttpMethod.POST, "/api/employees" ).hasRole( "MANAGER" )
+					  .requestMatchers( HttpMethod.PUT, "/api/employees" ).hasRole( "MANAGER" )
+					  .requestMatchers( HttpMethod.DELETE, "/api/employees/**" ).hasRole( "ADMIN" )
+					  .anyRequest().authenticated() );
 
 		http.oauth2ResourceServer().jwt();
-		http.sessionManagement().sessionCreationPolicy( SessionCreationPolicy.STATELESS);
-
+		http.sessionManagement().sessionCreationPolicy( SessionCreationPolicy.STATELESS );
 
 		return http.build();
 	}
-
-
 
 }
