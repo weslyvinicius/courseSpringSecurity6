@@ -6,6 +6,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class MyApiController {
 
+	/*
+	* Este projeto demostra como implementar o Spring Security 6 com o Spring Boot 3
+	* utilizando basic authentication e form login.
+	*
+	* */
 
 	@GetMapping("/myfree")
 	public String myFree(){
