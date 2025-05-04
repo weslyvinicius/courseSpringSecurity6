@@ -11,18 +11,12 @@ import org.springframework.web.bind.annotation.*;
     A anotação de nível de método @PreAuthorize  tem uma prioridade mais alta e substituirá o valor usado no nível de classe.
     Vamos dar uma olhada no trecho de código a seguir.
 
-    No exemplo de código acima, a anotação
-    @PreAuthorize é usada em nível de classe e todos os métodos da classe são afetados por ela.
-    Somente usuários na função “MANAGER” poderão acessar o terminal de serviço da Web /api/employees  .
-    No entanto, GET-> /api/employees (@PreAuthorize("permitAll")) estará disponível para todos os usuários porque a anotação @PreAuthorize no nível do método substitui a anotação no nível da classe.
 * */
-// @PreAuthorize("hasRole('MANAGER')")
 public class EmployeesController {
 
 
 	@GetMapping
-	@PreAuthorize("hasRole('EMPLOYEE')")
-	//@PreAuthorize("permitAll")
+	@PreAuthorize("permitAll")
 	public String getAllOfEmployees(){
     	return "Read all employees";
 	}

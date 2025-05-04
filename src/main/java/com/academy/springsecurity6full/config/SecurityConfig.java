@@ -21,9 +21,9 @@ public class SecurityConfig {
 
 		http.authorizeHttpRequests(configure ->
 			configure
-					.requestMatchers( "api/**" ).hasAnyRole( "MANAGER","EMPLOYEE","ADMIN" ) // informe quais roles tem acesso seu endpoint
 					// allow do acess to lougout default
 					.requestMatchers( "/logout" ).permitAll()
+					.anyRequest().authenticated() // all other requests need to be authenticated
 		);
 
 		// use http basic authentication
