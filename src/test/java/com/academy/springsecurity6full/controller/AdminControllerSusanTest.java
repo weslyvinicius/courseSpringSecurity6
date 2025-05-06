@@ -5,57 +5,55 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class SusanManagersControllerTest {
+public class AdminControllerSusanTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @Test
-    public void testGetAllEmployees_Success() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/admin")
+    public void testGetAllEmployees_PermitAll() throws Exception {
+        mockMvc.perform(get("/api/admin")
                         .with(httpBasic("susan", "s123456")))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Read all admin employees"));
     }
 
     @Test
-    public void testGetEmployeeById_Success() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/admin/1")
+    public void testGetAdminEmployee_Authorized() throws Exception {
+        mockMvc.perform(get("/api/admin/1")
                         .with(httpBasic("susan", "s123456")))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Read Admin Employee"));
+                .andExpect(content().string("Read Admin Employee: 1"));
     }
 
     @Test
-    public void testPostEmployee_Success() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.post("/api/admin")
+    public void testSaveAdminEmployee_Authorized() throws Exception {
+        mockMvc.perform(post("/api/admin")
                         .with(httpBasic("susan", "s123456")))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Create Admin Employee"));
     }
 
     @Test
-    public void testPutEmployee_Success() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.put("/api/admin")
-                        .with(httpBasic("susan", "s123456")))
+    public void testUpdateAdminEmployee_Authorized() throws Exception {
+        mockMvc.perform(put("/api/admin/1")
+                .with(httpBasic("susan", "s123456")))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Update Admin Employee"));
+                .andExpect(content().string("Update Admin Employee: 1"));
     }
 
     @Test
-    public void testDeleteEmployee_Success() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.delete("/api/admin/1")
+    public void testDeleteAdminEmployee_Authorized() throws Exception {
+        mockMvc.perform(delete("/api/admin/1")
                         .with(httpBasic("susan", "s123456")))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Delete Admin Employee"));
+                .andExpect(content().string("Delete Admin Employee: 1"));
     }
-
 }

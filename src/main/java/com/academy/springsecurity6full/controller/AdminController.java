@@ -16,39 +16,33 @@ import org.springframework.web.bind.annotation.*;
     Somente usuários na função “ADMIN” poderão acessar o terminal de serviço da Web /api/admin  .
     No entanto, GET-> /api/admin (@PreAuthorize("permitAll")) estará disponível para todos os usuários porque a anotação @PreAuthorize no nível do método substitui a anotação no nível da classe.
 * */
- @PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
-
 
 	@GetMapping
 	@PreAuthorize("permitAll")
-	public String getAllOfEmployees(){
-    	return "Read all admin employees";
+	public String getAllOfEmployees() {
+		return "Read all admin employees";
 	}
 
 	@GetMapping("/{employeeId}")
-	public String getAdminEmployee( @PathVariable String employeeId ){
-		return "Read Admin Employee";
+	public String getAdminEmployee(@PathVariable String employeeId) {
+		return "Read Admin Employee: " + employeeId;
 	}
 
 	@PostMapping
-	public String saveAdminEmployee(){
+	public String saveAdminEmployee() {
 		return "Create Admin Employee";
 	}
 
-	@PutMapping
-	public String updateAdminEmployee(){
-		return "Update Admin Employee";
+	@PutMapping("/{employeeId}")
+	public String updateAdminEmployee(@PathVariable String employeeId) {
+		return "Update Admin Employee: " + employeeId;
 	}
 
 	@DeleteMapping("/{employeeId}")
-	// @PreAuthorize("hasAuthority('DELETE_AUTHORITY')") --> YOU CAN USE AUTHORITIES
-	public String deleteAdminEmployee( @PathVariable String employeeId ){
-		return "Delete Admin Employee";
+	public String deleteAdminEmployee(@PathVariable String employeeId) {
+		return "Delete Admin Employee: " + employeeId;
 	}
-
-
-
-
 
 }

@@ -1,2 +1,13 @@
 
 
+
+# Configuração de logging para Spring Security
+logging.level.org.springframework.security: DEBUG
+logging.level.org.springframework.security.access: TRACE
+  
+  # Log detalhado para autorização
+logging.level.org.springframework.security.web.FilterChainProxy: DEBUG
+logging.level.org.springframework.security.web.access.expression: TRACE
+  
+  # Log para sua aplicação
+logging.level.com.academy.springsecurity6full: DEBUG
