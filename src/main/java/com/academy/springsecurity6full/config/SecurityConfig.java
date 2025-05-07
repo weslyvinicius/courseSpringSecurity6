@@ -4,6 +4,7 @@ import com.academy.springsecurity6full.repository.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
@@ -21,18 +22,23 @@ public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain mySecurityFilterChain( HttpSecurity http ) throws Exception {
 
-		http.csrf().disable();
+		http.csrf()
+				.disable()
+				.authorizeHttpRequests()
+				.requestMatchers( HttpMethod.GET,"/myfree" ).permitAll()
+				.requestMatchers( "/h2-console/**" ).permitAll()
+				.requestMatchers( "/h2-console" ).permitAll()
+				.requestMatchers( "/logout" ).permitAll()
+				.anyRequest().authenticated()
+				.and()
+				.userDetailsService( userDetailsService )
+				.formLogin( Customizer.withDefaults())
+				.httpBasic()
+				.and()
+				.cors();
 
-		http.authorizeHttpRequests( config ->
-						config.requestMatchers( "/logout" ).permitAll()
-						      .requestMatchers( "/h2-console/**" ).permitAll()
-						      .requestMatchers( "/h2-console" ).permitAll()
-						.anyRequest().authenticated());
-
-		http.userDetailsService( userDetailsService );
-
-		http.formLogin(Customizer.withDefaults() );
-		http.httpBasic();
+		// http.addFilterBefore( new myFilter, UsernamePasswordAuthenticationFilter.class  ) // informo ao sprint security um filter
+		// a ser executado antes.
 
 		return http.build();
 	}
