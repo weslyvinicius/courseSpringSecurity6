@@ -2,14 +2,18 @@ package com.academy.springsecurity6full.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+
+import java.util.Optional;
 
 /**
  * Configuração de segurança da aplicação.
@@ -24,35 +28,74 @@ import org.springframework.security.web.SecurityFilterChain;
  *
  * Por isso, esta implementação usa apenas authorities, incluindo as que representam roles
  * (prefixadas com "ROLE_"), tornando o código mais previsível e evitando conflitos.
+ *
+ * ORDEM DE PRECEDÊNCIA DAS REGRAS DE AUTORIZAÇÃO:
+ * As regras definidas em authorizeHttpRequests() são avaliadas na ordem em que são
+ * especificadas. A primeira regra que corresponde à requisição determina se o acesso
+ * será concedido ou negado. Para garantir o comportamento correto:
+ * - Regras mais específicas (ex.: "/api/reports/combined-auth") devem ser colocadas
+ *   antes de regras mais genéricas (ex.: "/api/reports/**").
+ * - Regras genéricas colocadas antes de regras específicas podem interceptar requisições
+ *   prematuramente, levando a autorizações ou negações incorretas.
+ * - Sempre revise a ordem das regras para evitar conflitos e garantir que a lógica de
+ *   autorização seja aplicada como esperado.
  */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
 	@Bean
-	public SecurityFilterChain mySecurityFilterChain( HttpSecurity http ) throws Exception {
+	public SecurityFilterChain mySecurityFilterChain(HttpSecurity http) throws Exception {
 
 		http.authorizeHttpRequests(configure ->
 				configure
-						// allow do acess to lougout default
-						.requestMatchers( "/logout" ).permitAll()
-						.anyRequest().authenticated() // all other requests need to be authenticated
+						// Configurações globais
+						.requestMatchers("/logout").permitAll()
+
+						// Endpoints de Employees
+						.requestMatchers(HttpMethod.GET, "/api/employees").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/employees/**").hasAuthority("READ_EMPLOYEE")
+						.requestMatchers(HttpMethod.POST, "/api/employees").hasAuthority("CREATE_EMPLOYEE")
+						.requestMatchers(HttpMethod.PUT, "/api/employees/**").hasAuthority("UPDATE_EMPLOYEE")
+						.requestMatchers(HttpMethod.DELETE, "/api/employees/**").hasAuthority("DELETE_EMPLOYEE")
+
+						// Endpoints de Reports
+						.requestMatchers(HttpMethod.GET, "/api/reports/combined-auth").access(
+								(authentication, object) -> {
+									Optional<Authentication> auth = Optional.ofNullable(authentication.get());
+									return auth
+											.map(a -> a.getAuthorities().stream()
+													.anyMatch(authority -> authority.getAuthority().equals("ROLE_MANAGER")) &&
+													a.getAuthorities().stream()
+															.anyMatch(authority -> authority.getAuthority().equals("READ_REPORT")))
+											.map(AuthorizationDecision::new)
+											.orElse(new AuthorizationDecision(false));
+								}
+						)
+						.requestMatchers(HttpMethod.GET, "/api/reports").hasAuthority("READ_REPORT")
+						.requestMatchers(HttpMethod.GET, "/api/reports/**").hasAuthority("READ_REPORT")
+						.requestMatchers(HttpMethod.POST, "/api/reports").hasAuthority("CREATE_REPORT")
+						.requestMatchers(HttpMethod.PUT, "/api/reports/**").hasAuthority("UPDATE_REPORT")
+						.requestMatchers(HttpMethod.DELETE, "/api/reports/**").hasAuthority("DELETE_REPORT")
+
+						// Endpoints de Admin
+						.requestMatchers(HttpMethod.GET, "/api/admin").permitAll()
+						.requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+						// Qualquer outra requisição precisa de autenticação
+						.anyRequest().authenticated()
 		);
 
-		// use http basic authentication
+		// Use http basic authentication
 		http.httpBasic();
 
-		// disable csrf
+		// Disable csrf
 		http.csrf().disable();
 
 		http.cors().disable();
 
-		//Enable form to login
-		http.formLogin( Customizer.withDefaults());
-
-		// http.addFilterBefore( new myFilter, UsernamePasswordAuthenticationFilter.class  ) // informo ao sprint security um filter
-		// a ser executado antes.
+		// Enable form login
+		http.formLogin(Customizer.withDefaults());
 
 		return http.build();
 	}
