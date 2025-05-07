@@ -16,17 +16,25 @@ public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain mySecurityFilterChain( HttpSecurity http ) throws Exception {
 
-		http.csrf()
-				.disable()
-				.authorizeHttpRequests()
-				.requestMatchers( HttpMethod.GET,"/myfree" ).permitAll()
-				.requestMatchers( "/logout" ).permitAll()
-				.anyRequest().authenticated()
-				.and()
-				.formLogin( Customizer.withDefaults())
-				.httpBasic()
-				.and()
-				.cors();
+		http.authorizeHttpRequests(configure ->
+				configure
+						.requestMatchers( HttpMethod.GET, "/api/employees").hasRole( "EMPLOYEE" )
+						.requestMatchers( HttpMethod.GET, "/api/employees/**").hasRole( "EMPLOYEE" )
+						.requestMatchers( HttpMethod.POST, "/api/employees").hasRole( "MANAGER" )
+						.requestMatchers( HttpMethod.PUT, "/api/employees").hasRole( "MANAGER" )
+						.requestMatchers( HttpMethod.DELETE, "/api/employees/**").hasRole( "ADMIN" )
+						// allow do acess to lougout default
+						.requestMatchers( "/logout" ).permitAll()
+		);
+
+		// use http basic authentication
+		http.httpBasic();
+
+		// disable csrf
+		http.csrf().disable();
+
+		//Enable form to login
+		http.formLogin( Customizer.withDefaults());
 
 		// http.addFilterBefore( new myFilter, UsernamePasswordAuthenticationFilter.class  ) // informo ao sprint security um filter
 		// a ser executado antes.
