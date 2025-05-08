@@ -1,60 +1,96 @@
-# Spring Security 6 com Spring Boot 3 - Autenticação em Memória
+# Spring Security 6 com Spring Boot 3 - Controle de Acesso por Roles
 
-Este projeto demonstra a implementação do Spring Security 6 com Spring Boot 3, utilizando autenticação básica (HTTP Basic), autenticação por formulário (Form Login) e gerenciamento de usuários em memória.
+Este projeto demonstra a implementação do Spring Security 6 com Spring Boot 3, focando em autenticação em memória e controle de acesso baseado em roles (RBAC - Role-Based Access Control) para uma API REST de funcionários.
 
 ## Estrutura do Projeto
 
-O projeto possui uma estrutura simples para demonstrar os conceitos básicos de segurança:
+O projeto possui uma estrutura que demonstra o controle de acesso com base em diferentes níveis de autorização:
 
-- `SecurityConfig.java`: Configuração de segurança da aplicação e definição dos usuários em memória
-- `MyApiController.java`: Controlador REST com endpoints protegidos e públicos
+- `SecurityConfig.java`: Configuração de segurança com definição de permissões por roles
+- `EmployeesController.java`: API REST para gerenciamento de funcionários com diferentes níveis de acesso
 - `application.yml`: Configurações da aplicação
 
 ## Principais Conceitos Demonstrados
 
-### 1. Configuração de Segurança
+### 1. Controle de Acesso por Roles
 
-No arquivo `SecurityConfig.java`, temos a configuração do Spring Security:
+No arquivo `SecurityConfig.java`, a configuração implementa um controle de acesso detalhado baseado em roles:
 
 ```java
-@Configuration
-public class SecurityConfig {
+@Bean
+public SecurityFilterChain mySecurityFilterChain(HttpSecurity http) throws Exception {
+    http.authorizeHttpRequests(configure ->
+        configure
+                .requestMatchers(HttpMethod.GET, "/api/employees").hasRole("EMPLOYEE")
+                .requestMatchers(HttpMethod.GET, "/api/employees/**").hasRole("EMPLOYEE")
+                .requestMatchers(HttpMethod.POST, "/api/employees").hasRole("MANAGER")
+                .requestMatchers(HttpMethod.PUT, "/api/employees").hasRole("MANAGER")
+                .requestMatchers(HttpMethod.DELETE, "/api/employees/**").hasRole("ADMIN")
+                // allow do acess to lougout default
+                .requestMatchers("/logout").permitAll()
+    );
 
-    @Bean
-    public SecurityFilterChain mySecurityFilterChain(HttpSecurity http) throws Exception {
-        http.csrf()
-            .disable()
-            .authorizeHttpRequests()
-            .requestMatchers(HttpMethod.GET,"/myfree").permitAll()
-            .requestMatchers("/logout").permitAll()
-            .anyRequest().authenticated()
-            .and()
-            .formLogin(Customizer.withDefaults())
-            .httpBasic()
-            .and()
-            .cors();
+    // use http basic authentication
+    http.httpBasic();
 
-        return http.build();
-    }
+    // disable csrf
+    http.csrf().disable();
+
+    //Enable form to login
+    http.formLogin(Customizer.withDefaults());
+
+    return http.build();
 }
 ```
 
 Nesta configuração:
 
-- O CSRF está desabilitado (`.csrf().disable()`)
-- Definimos regras de autorização:
-  - O endpoint `/myfree` é público (permitido para todos)
-  - O endpoint `/logout` é público
-  - Todos os outros endpoints requerem autenticação
-- Habilitamos autenticação por formulário com configurações padrão
-- Habilitamos autenticação básica HTTP
-- Configuramos CORS
+- **EMPLOYEE**: Pode apenas ler informações de funcionários (GET)
+- **MANAGER**: Pode criar (POST) e atualizar (PUT) funcionários, além de ler
+- **ADMIN**: Pode excluir (DELETE) funcionários, além de todas as permissões anteriores
+- O endpoint `/logout` é público para permitir que qualquer usuário saia do sistema
 
-### 2. Gerenciamento de Usuários em Memória
+### 2. API REST com Operações Controladas
 
-O projeto demonstra três abordagens para criar usuários em memória, com a primeira sendo a implementação ativa:
+O arquivo `EmployeesController.java` implementa os endpoints da API com diferentes operações:
 
-#### a) Utilizando Default Password Encoder
+```java
+@RestController
+@RequestMapping("/api/employees")
+public class EmployeesController {
+
+    @GetMapping
+    public String getAllOfEmployees(){
+        return "Read all employees";
+    }
+
+    @GetMapping("/{employeeId}")
+    public String getEmployee(@PathVariable String employeeId){
+        return "Read Employee";
+    }
+
+    @PostMapping
+    public String saveEmployee(){
+        return "Create Employee";
+    }
+
+    @PutMapping
+    public String updateEmployee(){
+        return "Update Employee";
+    }
+
+    @DeleteMapping("/{employeeId}")
+    public String deleteEmployee(@PathVariable String employeeId){
+        return "Delete Employee";
+    }
+}
+```
+
+Cada endpoint da API está protegido por um nível específico de autorização conforme configurado no `SecurityConfig`.
+
+### 3. Gerenciamento de Usuários em Memória
+
+O sistema utiliza autenticação em memória com três usuários, cada um com diferentes roles:
 
 ```java
 @Bean
@@ -82,90 +118,61 @@ public InMemoryUserDetailsManager userDetailsManager(){
 }
 ```
 
-#### b) Utilizando Texto Plano (Comentado no código)
+- **john**: Tem apenas a role EMPLOYEE
+- **mary**: Tem as roles MANAGER e EMPLOYEE
+- **susan**: Tem todas as roles: ADMIN, MANAGER e EMPLOYEE
 
-```java
-@Bean
-public InMemoryUserDetailsManager userDetailsManager(){
-    UserDetails john = User.builder()
-                       .username("john")
-                       .password("{noop}j123456")
-                       .roles("EMPLOYEE")
-                       .build();
-    
-    // ...outros usuários...
-    
-    return new InMemoryUserDetailsManager(john, mary, susan);
-}
-```
+### 4. Hierarquia de Autorização
 
-#### c) Utilizando BCrypt (Comentado no código)
+O projeto implementa uma hierarquia implícita de autorização, onde:
 
-```java
-@Bean
-public InMemoryUserDetailsManager userDetailsManager(){
-    UserDetails john = User.builder()
-                        .username("john")
-                        .password("{bcrypt}$2a$12$...")
-                        .roles("EMPLOYEE")
-                        .build();
-    
-    // ...outros usuários...
-    
-    return new InMemoryUserDetailsManager(john, mary, susan);
-}
-```
-
-### 3. Hierarquia de Roles (Papéis)
-
-O projeto implementa uma estrutura hierárquica de papéis:
-
-- `EMPLOYEE`: Nível básico de acesso (john)
-- `MANAGER`: Nível intermediário, também inclui permissões de EMPLOYEE (mary)
-- `ADMIN`: Nível mais alto, inclui permissões de MANAGER e EMPLOYEE (susan)
-
-### 4. Endpoints da API
-
-No arquivo `MyApiController.java`, temos dois endpoints:
-
-```java
-@RestController
-public class MyApiController {
-
-    @GetMapping("/myfree")
-    public String myFree(){
-        return "Acessando my endpoint free";
-    }
-
-    @GetMapping("/authenticate")
-    public String myAuthenticate(){
-        return "Acessando my endpoint authenticate";
-    }
-}
-```
-
-- `/myfree`: Endpoint público, acessível sem autenticação
-- `/authenticate`: Endpoint protegido, requer autenticação
+- **EMPLOYEE**: Nível básico (apenas leitura)
+- **MANAGER**: Nível intermediário (leitura, criação e atualização)
+- **ADMIN**: Nível completo (leitura, criação, atualização e exclusão)
 
 ## Como Testar
 
+Para testar as diferentes permissões de acesso:
+
 1. Inicie a aplicação
-2. Acesse `http://localhost:8080/myfree` - Deve funcionar sem autenticação
-3. Acesse `http://localhost:8080/authenticate` - Será redirecionado para o login
-   - Use as credenciais de um dos usuários configurados:
-     - john/j123456 (ROLE_EMPLOYEE)
-     - mary/m123456 (ROLE_MANAGER, ROLE_EMPLOYEE)
-     - susan/s123456 (ROLE_ADMIN, ROLE_MANAGER, ROLE_EMPLOYEE)
+2. Teste os endpoints com diferentes usuários:
+
+   **Usuário john (EMPLOYEE):**
+   - Pode acessar:
+     - GET `/api/employees`
+     - GET `/api/employees/{id}`
+   - Não pode acessar:
+     - POST `/api/employees`
+     - PUT `/api/employees`
+     - DELETE `/api/employees/{id}`
+
+   **Usuário mary (MANAGER):**
+   - Pode acessar:
+     - GET `/api/employees`
+     - GET `/api/employees/{id}`
+     - POST `/api/employees`
+     - PUT `/api/employees`
+   - Não pode acessar:
+     - DELETE `/api/employees/{id}`
+
+   **Usuário susan (ADMIN):**
+   - Pode acessar todos os endpoints
+
+3. Para autenticar, use:
+   - Formulário de login padrão do Spring Security
+   - Autenticação Básica HTTP com as credenciais apropriadas
 
 ## Pontos Importantes
 
-- A autenticação em memória é útil para testes e aplicações simples, mas não é recomendada para produção
-- O método `withDefaultPasswordEncoder()` é marcado como deprecated e deve ser usado apenas para demonstrações
-- Em ambientes de produção, o CSRF deve ser habilitado
-- Para aplicações reais, considere implementar autenticação com banco de dados ou serviços de identidade
+- O método `withDefaultPasswordEncoder()` é deprecated e recomendado apenas para demonstrações
+- Em ambiente de produção, considere:
+  - Habilitar CSRF
+  - Utilizar autenticação com banco de dados
+  - Implementar encoder de senha mais robusto (como BCrypt)
+  - Utilizar HTTPS para proteger as comunicações
 
 ## Recursos Adicionais
 
 - [Documentação do Spring Security](https://docs.spring.io/spring-security/reference/index.html)
-- [Spring Security 6 - Novas Funcionalidades](https://spring.io/blog/2022/02/21/spring-security-5-7-0-m2-and-5-6-2-available-now)
-- [Spring Boot Security Starter](https://docs.spring.io/spring-boot/docs/current/reference/html/spring-boot-features.html#boot-features-security)
+- [Controle de Acesso Baseado em Roles](https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html)
+- [Spring Security 6 - Guia de Autorização](https://docs.spring.io/spring-security/reference/servlet/authorization/index.html)
