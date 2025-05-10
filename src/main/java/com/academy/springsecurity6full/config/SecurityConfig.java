@@ -1,5 +1,7 @@
 package com.academy.springsecurity6full.config;
 
+import com.academy.springsecurity6full.repository.UserDetailsServiceImpl;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -8,6 +10,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -28,7 +32,10 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+	private final UserDetailsServiceImpl userDetailsService;
 
 	@Bean
 	public SecurityFilterChain mySecurityFilterChain( HttpSecurity http ) throws Exception {
@@ -51,98 +58,25 @@ public class SecurityConfig {
 		//Enable form to login
 		http.formLogin( Customizer.withDefaults());
 
+		http.userDetailsService( userDetailsService );
+
 		// http.addFilterBefore( new myFilter, UsernamePasswordAuthenticationFilter.class  ) // informo ao sprint security um filter
 		// a ser executado antes.
 
 		return http.build();
 	}
 
-	/**
-	 * Criando usuários com authorities específicas
-	 * Nota: As roles são definidas como authorities com prefixo "ROLE_"
-	 */
+	// Usando pass code text
 	@Bean
-	public InMemoryUserDetailsManager userDetailsManager() {
-		User.UserBuilder users = User.withDefaultPasswordEncoder();
-
-		// User com role EMPLOYEE e permissões de leitura
-		UserDetails john = users
-				.username("john")
-				.password("j123456")
-				.authorities("ROLE_EMPLOYEE", "READ_EMPLOYEE")
-				.build();
-
-		// User com role MANAGER e permissões de leitura, criação e atualização
-		UserDetails mary = users
-				.username("mary")
-				.password("m123456")
-				.authorities("ROLE_MANAGER", "READ_EMPLOYEE", "CREATE_EMPLOYEE", "UPDATE_EMPLOYEE", "READ_REPORT")
-				.build();
-
-		// User com role ADMIN e todas as permissões
-		UserDetails susan = users
-				.username("susan")
-				.password("s123456")
-				.authorities("ROLE_ADMIN", "READ_EMPLOYEE", "CREATE_EMPLOYEE", "UPDATE_EMPLOYEE", "DELETE_EMPLOYEE",
-						"READ_REPORT", "CREATE_REPORT", "UPDATE_REPORT", "DELETE_REPORT")
-				.build();
-
-		return new InMemoryUserDetailsManager(john, mary, susan);
+	PasswordEncoder passwordEncoder(){
+		return NoOpPasswordEncoder.getInstance();
 	}
 
 
-	//Criando usuario em com encode de passaword text
-	/**
-	 @Bean
-	 public InMemoryUserDetailsManager userDetailsManager(){
-	 UserDetails john = User.builder()
-	 .username( "john" )
-	 .password( "{noop}j123456" )
-	 .authorities( "ROLE_EMPLOYEE" )
-	 .build();
-
-	 UserDetails mary = User.builder()
-	 .username( "mary" )
-	 .password( "{noop}m123456" )
-	 .authorities( "ROLE_MANAGER", "ROLE_EMPLOYEE" )
-	 .build();
-
-	 UserDetails susan = User.builder()
-	 .username( "susan" )
-	 .password( "{noop}s123456" )
-	 .authorities( "ROLE_MANAGER", "ROLE_EMPLOYEE", "ROLE_ADMIN" )
-	 .build();
-	 return new InMemoryUserDetailsManager(john, mary, susan);
-	 }
-	 */
-
-	//Criando usuario em com encode de passaword bcrypt
-
-	/**
-	 *
-	 @Bean
-	 public InMemoryUserDetailsManager userDetailsManager(){
-	 UserDetails john = User.builder()
-	 .username( "john" )
-	 .password( "{bcrypt}$2a$12$gAZCDk7nJiApgwMjQSqAtuWdU1glJCRWjy4RjTcAdTnp2GEpw5UEC" )
-	 .authorities( "ROLE_EMPLOYEE" )
-	 .build();
-
-	 UserDetails mary = User.builder()
-	 .username( "mary" )
-	 .password( "{bcrypt}$2a$12$P95pmS5cMCZSL/GfVq4chuSE1Qa.tnPew9atuDXS.QTtKO2iug36u" )
-	 .authorities( "ROLE_MANAGER", "ROLE_EMPLOYEE" )
-	 .build();
-
-	 UserDetails susan = User.builder()
-	 .username( "susan" )
-	 .password( "{bcrypt}$2a$12$Hur7lxjp4nIuB30h/By22uKlrDmPP9SFPK0KAdhQ15MRMhJaUKDBK" )
-	 .authorities( "ROLE_MANAGER", "ROLE_EMPLOYEE", "ROLE_ADMIN" )
-	 .build();
-
-	 return new InMemoryUserDetailsManager(john, mary, susan);
-	 }
-	 */
-
+//  Usando ByCripyt
+//	@Bean
+//	PasswordEncoder passwordEncoder(){
+//		return new BCryptPasswordEncoder();
+//	}
 
 }
