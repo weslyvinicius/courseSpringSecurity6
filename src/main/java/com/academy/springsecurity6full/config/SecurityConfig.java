@@ -38,6 +38,17 @@ public class SecurityConfig {
 		http.formLogin(Customizer.withDefaults() );
 		http.httpBasic();
 
+		// disable csrf
+		http.csrf().disable();
+
+		http.cors().disable();
+
+		//Enable form to login
+		http.formLogin( Customizer.withDefaults());
+
+		// http.addFilterBefore( new myFilter, UsernamePasswordAuthenticationFilter.class  )
+		// informar ao sprint security um filter a ser executado antes.
+
 		return http.build();
 	}
 
