@@ -25,13 +25,16 @@ public class SecurityConfig {
 		//* As Roles dos users dever ser salvas no bando de dados no formado "ROLE_" ex: ROLE_ADMIN
 		http.authorizeHttpRequests(configure ->
 				configure
+						.requestMatchers( "/h2-console/**" ).permitAll()
+						.requestMatchers( "/h2-console" ).permitAll()
+						.requestMatchers( "/logout" ).permitAll()
 						.requestMatchers( HttpMethod.GET, "/api/employees").hasRole( "EMPLOYEE" )
 						.requestMatchers( HttpMethod.GET, "/api/employees/**").hasRole( "EMPLOYEE" )
 						.requestMatchers( HttpMethod.POST, "/api/employees").hasRole( "MANAGER" )
 						.requestMatchers(HttpMethod.PUT, "/api/employees").hasRole("MANAGER")
 						.requestMatchers( HttpMethod.DELETE, "/api/employees/**").hasRole( "ADMIN" )
-						// allow do acess to lougout default
-						.requestMatchers( "/logout" ).permitAll()
+						.anyRequest().authenticated()
+
 		);
 
 		// use http basic authentication
