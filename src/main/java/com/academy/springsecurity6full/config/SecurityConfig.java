@@ -22,25 +22,31 @@ public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain mySecurityFilterChain( HttpSecurity http ) throws Exception {
 
+		//* As Roles dos users dever ser salvas no bando de dados no formado "ROLE_" ex: ROLE_ADMIN
+		http.authorizeHttpRequests(configure ->
+				configure
+						.requestMatchers( HttpMethod.GET, "/api/employees").hasRole( "EMPLOYEE" )
+						.requestMatchers( HttpMethod.GET, "/api/employees/**").hasRole( "EMPLOYEE" )
+						.requestMatchers( HttpMethod.POST, "/api/employees").hasRole( "MANAGER" )
+						.requestMatchers(HttpMethod.PUT, "/api/employees").hasRole("MANAGER")
+						.requestMatchers( HttpMethod.DELETE, "/api/employees/**").hasRole( "ADMIN" )
+						// allow do acess to lougout default
+						.requestMatchers( "/logout" ).permitAll()
+		);
+
+		// use http basic authentication
+		http.httpBasic();
+
+		// disable csrf
 		http.csrf().disable();
 
-		http.authorizeHttpRequests( config ->
-						config.requestMatchers( "/logout" ).permitAll()
-						      .requestMatchers( "/h2-console/**" ).permitAll()
-						      .requestMatchers( "/h2-console" ).permitAll()
-
-							  //* AS Roles dever ser salvas no bando de dados no formado "ROLE_" ex: ROLE_ADMIN
-							  .requestMatchers( HttpMethod.GET,    "/api/employees"   ).hasRole("EMPLOYEE")
-							  .requestMatchers( HttpMethod.GET,    "/api/employees/**").hasRole("EMPLOYEE")
-							  .requestMatchers( HttpMethod.POST,   "/api/employees"   ).hasRole("MANAGER")
-							  .requestMatchers( HttpMethod.PUT,    "/api/employees"   ).hasRole("MANAGER")
-							  .requestMatchers( HttpMethod.DELETE, "/api/employees/**").hasRole("ADMIN")
-						.anyRequest().authenticated());
+		//Enable form to login
+		http.formLogin( Customizer.withDefaults());
 
 		http.userDetailsService( userDetailsService );
 
-		http.formLogin(Customizer.withDefaults() );
-		http.httpBasic();
+		// http.addFilterBefore( new myFilter, UsernamePasswordAuthenticationFilter.class  ) // informo ao sprint security um filter
+		// a ser executado antes.
 
 		return http.build();
 	}
