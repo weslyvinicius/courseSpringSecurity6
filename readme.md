@@ -1,16 +1,20 @@
-# Spring Security 6 com Spring Boot 3 - Utilizando Roles e Authorities
+# Spring Security 6 com Spring Boot 3 - Utilizando Roles e Authorities com Persistência
 
-Este projeto demonstra uma implementação avançada do Spring Security 6 com Spring Boot 3, focando na combinação de roles (papéis) e authorities (permissões) para um controle de acesso centralizado e refinado.
+Este projeto demonstra uma implementação avançada do Spring Security 6 com Spring Boot 3, focando na combinação de roles (papéis) e authorities (permissões) para um controle de acesso centralizado e refinado, utilizando persistência em banco de dados.
 
 ## Estrutura do Projeto
 
-O projeto demonstra um sistema de controle de acesso completo baseado em authorities e roles:
+O projeto implementa um sistema de controle de acesso completo baseado em authorities e roles com persistência:
 
-- `SecurityConfig.java`: Configuração centralizada de segurança com definição de usuários, roles, authorities e regras de autorização
+- `SecurityConfig.java`: Configuração centralizada de segurança com regras de autorização
+- `UserEntity.java`: Entidade JPA que implementa UserDetails para autenticação
+- `UserAuthorities.java`: Entidade JPA que implementa GrantedAuthority para autorização
+- `AuthorityEnum.java`: Enumeração com todas as authorities disponíveis
+- `UserRepository.java`: Interface para persistência de usuários
+- `UserDetailsServiceImpl.java`: Serviço para carregamento de usuários do banco de dados
 - `EmployeesController.java`: API REST para funcionários
 - `AdminController.java`: API REST para administradores
 - `ReportsController.java`: API REST para relatórios com exemplo de combinação de roles e authorities
-- `application.yml`: Configurações da aplicação
 
 ## Principais Conceitos Demonstrados
 
@@ -21,101 +25,103 @@ No Spring Security:
 - **Roles**: Representam um papel ou função de um usuário no sistema (EMPLOYEE, MANAGER, ADMIN). São tratadas internamente como authorities com o prefixo "ROLE_".
 - **Authorities**: Representam permissões específicas para ações (READ_EMPLOYEE, CREATE_EMPLOYEE, etc.).
 
-### 2. Por que Implementamos Apenas com Authorities
+### 2. Implementação com Persistência de Usuários e Authorities
 
-No Spring Security, há um comportamento importante que precisa ser compreendido quando se trabalha com roles e authorities simultaneamente:
+A nova implementação utiliza entidades JPA para persistir usuários e suas authorities:
 
-- **Conversão automática**: Uma role definida com `.roles("ADMIN")` é convertida para uma authority `ROLE_ADMIN`.
-- **Conflito potencial**: Definir `.roles()` e `.authorities()` simultaneamente para o mesmo usuário pode causar comportamentos inesperados.
-- **Solução adotada**: Para evitar esses problemas, implementamos tudo como authorities, incluindo as roles (prefixadas com "ROLE_"). Isso torna o código mais previsível e evita conflitos.
-
-```java
-// Abordagem INCORRETA (usada anteriormente):
-UserDetails john = users
-        .username("john")
-        .password("j123456")
-        .roles("EMPLOYEE")          // Isso cria authority "ROLE_EMPLOYEE"
-        .authorities("READ_EMPLOYEE") // Isso adiciona outra authority
-        .build();
-
-// Abordagem CORRETA (implementada agora):
-UserDetails john = users
-        .username("john")
-        .password("j123456")
-        .authorities("ROLE_EMPLOYEE", "READ_EMPLOYEE")
-        .build();
-```
-
-### 3. Configuração de Usuários com Authorities
-
-No arquivo `SecurityConfig.java`, cada usuário recebe authorities que representam tanto suas roles quanto suas permissões específicas:
+- `UserEntity`: Implementa a interface `UserDetails` e mantém a relação com suas authorities
+- `UserAuthorities`: Implementa a interface `GrantedAuthority` e armazena as permissões
+- `AuthorityEnum`: Define todas as authorities possíveis, incluindo roles (com prefixo "ROLE_")
 
 ```java
-@Bean
-public InMemoryUserDetailsManager userDetailsManager() {
-    User.UserBuilder users = User.withDefaultPasswordEncoder();
+// Entidade de usuário que implementa UserDetails
+@Entity
+@Table(name = "tb_user")
+public class UserEntity implements UserDetails {
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private Long id;
+    private String name;
+    private String password;
     
-    // User com role EMPLOYEE e permissões de leitura
-    UserDetails john = users
-            .username("john")
-            .password("j123456")
-            .authorities("ROLE_EMPLOYEE", "READ_EMPLOYEE")
-            .build();
-
-    // User com role MANAGER e permissões de leitura, criação e atualização
-    UserDetails mary = users
-            .username("mary")
-            .password("m123456")
-            .authorities("ROLE_MANAGER", "READ_EMPLOYEE", "CREATE_EMPLOYEE", "UPDATE_EMPLOYEE", "READ_REPORT")
-            .build();
-
-    // User com role ADMIN e todas as permissões
-    UserDetails susan = users
-            .username("susan")
-            .password("s123456")
-            .authorities("ROLE_ADMIN", "READ_EMPLOYEE", "CREATE_EMPLOYEE", "UPDATE_EMPLOYEE", "DELETE_EMPLOYEE", 
-                         "READ_REPORT", "CREATE_REPORT", "UPDATE_REPORT", "DELETE_REPORT")
-            .build();
-
-    return new InMemoryUserDetailsManager(john, mary, susan);
+    @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @JoinTable(name = "tb_users_authority",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "authority_id"))
+    private Collection<UserAuthorities> authorities = new ArrayList<>();
+    
+    // Método auxiliar para criar authorities
+    public void createAuthorities(AuthorityEnum... authorities) {
+        for (AuthorityEnum authority : authorities) {
+            UserAuthorities userAuthorities = new UserAuthorities();
+            userAuthorities.setAuthority(authority);
+            this.authorities.add(userAuthorities);
+        }
+    }
+    
+    // Implementação dos métodos de UserDetails
+    // ...
 }
 ```
 
-Cada usuário tem:
-- **john**: Role EMPLOYEE + authority READ_EMPLOYEE
-- **mary**: Role MANAGER + authorities para leitura, criação e atualização
-- **susan**: Role ADMIN + todas as authorities
+### 3. Carregamento de Usuários do Banco de Dados
+
+O serviço `UserDetailsServiceImpl` busca usuários no banco de dados através do `UserRepository`:
+
+```java
+@Service
+public class UserDetailsServiceImpl implements UserDetailsService {
+    private final UserRepository userRepository;
+    
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        return userRepository.findByName(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User Not Found with username:" + username));
+    }
+}
+```
 
 ### 4. Configuração Centralizada de Segurança
 
-O controle de acesso é configurado inteiramente no arquivo `SecurityConfig.java` usando o método `authorizeHttpRequests()`. centralizando a lógica de segurança e facilitando a manutenção. As regras são definidas com base em authorities e, em alguns casos, roles (tratadas como authorities com prefixo "ROLE_").
-
-Exemplo para endpoints de funcionários:
+O controle de acesso continua sendo configurado no arquivo `SecurityConfig.java` usando o método `authorizeHttpRequests()`, mas agora integrado com o serviço de usuários baseado em banco de dados:
 
 ```java
-.requestMatchers(HttpMethod.GET, "/api/employees").permitAll()
-.requestMatchers(HttpMethod.GET, "/api/employees/**").hasAuthority("READ_EMPLOYEE")
-.requestMatchers(HttpMethod.POST, "/api/employees").hasAuthority("CREATE_EMPLOYEE")
-.requestMatchers(HttpMethod.PUT, "/api/employees/**").hasAuthority("UPDATE_EMPLOYEE")
-.requestMatchers(HttpMethod.DELETE, "/api/employees/**").hasAuthority("DELETE_EMPLOYEE")
-```
-
-Exemplo para endpoints de administradores:
-
-```java
-.requestMatchers(HttpMethod.GET, "/api/admin").permitAll()
-.requestMatchers("/api/admin/**").hasRole("ADMIN")
+@Configuration
+@EnableWebSecurity
+@RequiredArgsConstructor
+public class SecurityConfig {
+    private final UserDetailsServiceImpl userDetailsService;
+    
+    @Bean
+    public SecurityFilterChain mySecurityFilterChain(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(configure ->
+                configure
+                    // Definição das regras de autorização
+                    // ...
+        );
+        
+        // Configuração de autenticação básica HTTP
+        http.httpBasic();
+        
+        // Configuração de login por formulário
+        http.formLogin(Customizer.withDefaults());
+        
+        // Integração com o serviço de usuários
+        http.userDetailsService(userDetailsService);
+        
+        return http.build();
+    }
+    
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return NoOpPasswordEncoder.getInstance();
+    }
+}
 ```
 
 ### 5. Ordem de Precedência das Regras de Autorização
 
-As regras de autorização no Spring Security são avaliadas na **ordem em que são definidas** no método `authorizeHttpRequests()`. A primeira regra que corresponde à requisição determina se o acesso será concedido ou negado. Isso torna a ordem das regras crítica:
-
-- **Regras específicas primeiro**: Regras para endpoints exatos (ex.: `/api/reports/combined-auth`) devem ser colocadas antes de regras para padrões genéricos (ex.: `/api/reports/**`).
-- **Impacto de regras genéricas**: Se uma regra genérica for definida antes de uma específica, ela pode interceptar a requisição prematuramente, levando a autorizações ou negações incorretas.
-- **Boa prática**: Sempre organize as regras do mais específico para o mais genérico para garantir que a lógica de autorização seja aplicada corretamente.
-
-Exemplo no `SecurityConfig.java`:
+As regras de autorização no Spring Security continuam sendo avaliadas na **ordem em que são definidas** no método `authorizeHttpRequests()`. A primeira regra que corresponde à requisição determina se o acesso será concedido ou negado.
 
 ```java
 // Endpoint específico de Reports (colocado antes das regras genéricas)
@@ -144,11 +150,11 @@ O endpoint `/api/reports/combined-auth` demonstra a combinação de roles e auth
 )
 ```
 
-Este endpoint exige que o usuário tenha **ambas** as authorities `ROLE_MANAGER` e `READ_REPORT`. Apenas o usuário `mary` atende a esses critérios.
+Este endpoint exige que o usuário tenha **ambas** as authorities `ROLE_MANAGER` e `READ_REPORT`.
 
 ## Estrutura de Controle de Acesso
 
-### Authorities Implementadas
+### Authorities Implementadas (AuthorityEnum)
 
 **Funcionários:**
 - READ_EMPLOYEE: Leitura de dados de funcionários
@@ -167,26 +173,73 @@ Este endpoint exige que o usuário tenha **ambas** as authorities `ROLE_MANAGER`
 - ROLE_MANAGER: Papel de gerente
 - ROLE_ADMIN: Papel de administrador
 
-### Roles e Suas Authorities
+## Como Configurar o Banco de Dados
 
-- **ROLE_EMPLOYEE** (john):
-  - READ_EMPLOYEE
+Para configurar os usuários no banco de dados, você pode criar um componente de inicialização:
 
-- **ROLE_MANAGER** (mary):
-  - READ_EMPLOYEE
-  - CREATE_EMPLOYEE
-  - UPDATE_EMPLOYEE
-  - READ_REPORT
-
-- **ROLE_ADMIN** (susan):
-  - Todas as authorities
+```java
+@Component
+public class DatabaseInitializer implements CommandLineRunner {
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    
+    public DatabaseInitializer(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+    
+    @Override
+    public void run(String... args) {
+        // Cria usuário com role EMPLOYEE
+        UserEntity john = new UserEntity();
+        john.setName("john");
+        john.setPassword("j123456");
+        john.createAuthorities(
+            AuthorityEnum.ROLE_EMPLOYEE,
+            AuthorityEnum.READ_EMPLOYEE
+        );
+        
+        // Cria usuário com role MANAGER
+        UserEntity mary = new UserEntity();
+        mary.setName("mary");
+        mary.setPassword("m123456");
+        mary.createAuthorities(
+            AuthorityEnum.ROLE_MANAGER,
+            AuthorityEnum.READ_EMPLOYEE,
+            AuthorityEnum.CREATE_EMPLOYEE,
+            AuthorityEnum.UPDATE_EMPLOYEE,
+            AuthorityEnum.READ_REPORT
+        );
+        
+        // Cria usuário com role ADMIN
+        UserEntity susan = new UserEntity();
+        susan.setName("susan");
+        susan.setPassword("s123456");
+        susan.createAuthorities(
+            AuthorityEnum.ROLE_ADMIN,
+            AuthorityEnum.READ_EMPLOYEE,
+            AuthorityEnum.CREATE_EMPLOYEE,
+            AuthorityEnum.UPDATE_EMPLOYEE,
+            AuthorityEnum.DELETE_EMPLOYEE,
+            AuthorityEnum.READ_REPORT,
+            AuthorityEnum.CREATE_REPORT,
+            AuthorityEnum.UPDATE_REPORT,
+            AuthorityEnum.DELETE_REPORT
+        );
+        
+        // Salva usuários no banco de dados
+        userRepository.saveAll(List.of(john, mary, susan));
+    }
+}
+```
 
 ## Como Testar
 
 Para testar as diferentes permissões de acesso:
 
 1. Inicie a aplicação
-2. Teste os endpoints com diferentes usuários:
+2. O banco de dados (H2 Console) estará disponível em `/h2-console`
+3. Teste os endpoints com diferentes usuários:
 
    **API de Funcionários (/api/employees):**
    
@@ -216,29 +269,30 @@ Para testar as diferentes permissões de acesso:
    | `/api/admin` | GET | nenhuma (permitAll) | Todos |
    | `/api/admin/**` | Outros | ROLE_ADMIN | susan |
 
-3. Para autenticar, use:
+4. Para autenticar, use:
    - Formulário de login padrão do Spring Security
    - Autenticação Básica HTTP com as credenciais apropriadas
 
 ## Vantagens desta Abordagem
 
-1. **Centralização**: Todo o controle de acesso é definido no `SecurityConfig.java`, facilitando a manutenção e auditoria.
-2. **Controle granular**: Authorities permitem definir permissões específicas para operações individuais.
-3. **Consistência interna**: Tratar roles e permissions uniformemente como authorities evita comportamentos inesperados.
-4. **Flexibilidade**: A lógica personalizada (como no endpoint `/api/reports/combined-auth`) permite esquemas de autorização complexos.
-5. **Expressividade**: As regras de segurança expressam claramente a intenção (ex.: `hasAuthority('DELETE_EMPLOYEE')`).
+1. **Persistência**: Usuários e authorities são persistidos em banco de dados.
+2. **Flexibilidade**: Fácil adicionar, remover ou modificar usuários e suas permissões.
+3. **Centralização**: Todo o controle de acesso é definido no `SecurityConfig.java`.
+4. **Controle granular**: Authorities permitem definir permissões específicas para operações individuais.
+5. **Consistência interna**: O uso do enum `AuthorityEnum` garante consistência nas authorities.
+6. **Expressividade**: As regras de segurança expressam claramente a intenção.
 
 ## Pontos Importantes
 
-- O método `withDefaultPasswordEncoder()` é deprecado e recomendado apenas para demonstrações.
-- Em ambiente de produção:
-  - Implemente authorities baseadas em banco de dados.
-  - Use encoder de senha mais robusto (como BCrypt).
-  - Considere implementar mecanismos de cache para authorities.
+- O uso de `NoOpPasswordEncoder` é deprecado e recomendado apenas para demonstrações. Em produção, use BCryptPasswordEncoder.
+- Em ambientes de produção:
+  - Use encoder de senha mais robusto (BCryptPasswordEncoder está comentado no código).
+  - Considere implementar mecanismos de cache para usuários e authorities.
   - Habilite CSRF e use HTTPS.
+  - Implemente revogação de tokens e controle de sessão.
 
 ## Recursos Adicionais
 
 - [Documentação do Spring Security sobre Authorization](https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html)
 - [Diferença entre Roles e Authorities no Spring Security](https://docs.spring.io/spring-security/site/docs/current/reference/html5/#appendix-faq-role-vs-authority)
-- [Configuração de HttpSecurity](https://docs.spring.io/spring-security/reference/servlet/configuration/java.html)
+- [Configuração de Persistência no Spring Security](https://docs.spring.io/spring-security/reference/servlet/authentication/passwords/jdbc.html)

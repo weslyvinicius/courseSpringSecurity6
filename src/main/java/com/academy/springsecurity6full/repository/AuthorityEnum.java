@@ -1,0 +1,15 @@
+package com.academy.springsecurity6full.repository;
+
+public enum AuthorityEnum {
+	ROLE_EMPLOYEE,
+	ROLE_MANAGER,
+	ROLE_ADMIN,
+	CREATE_EMPLOYEE,
+	READ_EMPLOYEE,
+	UPDATE_EMPLOYEE,
+	DELETE_EMPLOYEE,
+	CREATE_REPORT,
+	READ_REPORT,
+	UPDATE_REPORT,
+	DELETE_REPORT
+}
