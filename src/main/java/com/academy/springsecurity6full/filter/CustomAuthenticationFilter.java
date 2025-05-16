@@ -13,6 +13,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+/**
+ * Filtro customizado que intercepta todas as requisições HTTP
+ * Este filtro é responsável por:
+ * 1. Extrair a chave do header da requisição
+ * 2. Criar um objeto de autenticação não autenticado
+ * 3. Delegar a autenticação para o manager
+ * 4. Estabelecer o contexto de segurança se a autenticação for bem-sucedida
+ */
 @Component
 @AllArgsConstructor
 public class CustomAuthenticationFilter extends OncePerRequestFilter {

@@ -8,6 +8,11 @@ import org.springframework.security.core.GrantedAuthority;
 import javax.security.auth.Subject;
 import java.util.Collection;
 
+/**
+ * Classe que implementa a interface Authentication do Spring Security
+ * Esta classe é responsável por manter o estado da autenticação e as informações do usuário autenticado
+ * Nesta implementação simplificada, apenas mantemos um flag de autenticação e uma chave
+ */
 @AllArgsConstructor
 @Data
 public class CustomAuthentication implements Authentication {

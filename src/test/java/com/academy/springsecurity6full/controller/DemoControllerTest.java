@@ -8,6 +8,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -21,8 +22,9 @@ class DemoControllerTest {
      @Test
      void demoOK() throws Exception {
          mockMvc.perform( MockMvcRequestBuilders.get("/demo")
-                                 .with( httpBasic("key", "secret") )
+                         .header("key", "secret")
                          )
+                 .andDo( print())
                  .andExpect(status().isOk())
                  .andExpect(content().string("Demo!"));
      }
@@ -30,9 +32,9 @@ class DemoControllerTest {
     @Test
     void demoBadRequest() throws Exception {
         mockMvc.perform( MockMvcRequestBuilders.get("/demo")
-                        .with( httpBasic("key", "secret") )
                        )
-                .andExpect(status().isBadRequest());
+                .andDo( print() )
+                .andExpect(content().string("Oh No!"));;
     }
 
 }
