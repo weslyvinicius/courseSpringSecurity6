@@ -22,7 +22,8 @@ class DemoControllerTest {
      @Test
      void demoOK() throws Exception {
          mockMvc.perform( MockMvcRequestBuilders.get("/demo")
-                         .header("key", "secret")
+                                 .with(httpBasic("user", "password123") // username e password do usuário criado no InMemoryUserDetailsManager
+                                 )
                          )
                  .andDo( print())
                  .andExpect(status().isOk())
@@ -32,9 +33,11 @@ class DemoControllerTest {
     @Test
     void demoBadRequest() throws Exception {
         mockMvc.perform( MockMvcRequestBuilders.get("/demo")
-                       )
+                          .with(httpBasic("user", "password1234")
+                          )
+                )
                 .andDo( print() )
-                .andExpect(content().string("Oh No!"));;
+                .andExpect(status().isUnauthorized());
     }
 
 }

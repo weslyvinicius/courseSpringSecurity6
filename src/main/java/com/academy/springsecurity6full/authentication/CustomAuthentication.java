@@ -18,7 +18,8 @@ import java.util.Collection;
 public class CustomAuthentication implements Authentication {
 
 	private final boolean authentication;
-	private final String key;
+	private final String username;
+	private final String password;
 
 	@Override
 	public boolean isAuthenticated() {
@@ -57,6 +58,6 @@ public class CustomAuthentication implements Authentication {
 
 	@Override
 	public String getName() {
-		return null;
+		return username;
 	}
 }

@@ -23,12 +23,10 @@ public class CustomAuthenticationManager implements AuthenticationManager {
 	private final CustomAuthenticationProvider provider;
 
 	@Override
-	public Authentication authenticate( Authentication authentication) throws AuthenticationException {
-
+	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
 		if (provider.supports(authentication.getClass())) {
 			return provider.authenticate(authentication);
 		}
-
-		throw new BadCredentialsException("Oh No!");
+		throw new BadCredentialsException("Unsupported authentication type.");
 	}
 }
