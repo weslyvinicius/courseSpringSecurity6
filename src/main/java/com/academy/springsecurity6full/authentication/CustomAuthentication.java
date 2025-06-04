@@ -2,22 +2,18 @@ package com.academy.springsecurity6full.authentication;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
 import javax.security.auth.Subject;
 import java.util.Collection;
 
-/**
- * Classe que implementa a interface Authentication do Spring Security
- * Esta classe é responsável por manter o estado da autenticação e as informações do usuário autenticado
- * Nesta implementação simplificada, apenas mantemos um flag de autenticação e uma chave
- */
-@AllArgsConstructor
 @Data
+@RequiredArgsConstructor
 public class CustomAuthentication implements Authentication {
 
-	private final boolean authentication;
+	private boolean authentication;
 	private final String key;
 
 	@Override
