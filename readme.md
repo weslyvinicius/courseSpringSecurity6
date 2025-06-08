@@ -1,243 +1,242 @@
-# Spring Security 6 com Spring Boot 3 - Utilizando Roles e Authorities
+# Spring Security 6 - Estudo da Anotação @PreAuthorize
 
-Este projeto demonstra uma implementação avançada do Spring Security 6 com Spring Boot 3, focando na combinação de roles (papéis) e authorities (permissões) para um controle de acesso mais refinado.
+Este projeto demonstra o uso da anotação `@PreAuthorize` do Spring Security 6 com Spring Boot 3, explorando diferentes formas de controle de acesso a métodos e endpoints.
 
 ## Estrutura do Projeto
 
-O projeto demonstra um sistema de controle de acesso completo baseado em authorities e roles:
+O projeto é composto por três classes principais:
 
-- `SecurityConfig.java`: Configuração de segurança com definição de usuários, roles e authorities
-- `EmployeesController.java`: API REST para funcionários com permissões baseadas em authorities
-- `AdminController.java`: API REST para administradores com segurança baseada em roles
-- `ReportsController.java`: API REST para relatórios com exemplo de combinação de roles e authorities
-- `application.yml`: Configurações da aplicação
+- **`SecurityConfig.java`**: Configuração de segurança com usuários em memória
+- **`SecureController.java`**: Controller REST demonstrando diferentes usos do `@PreAuthorize`
+- **`SecurityService.java`**: Serviço para lógica de autorização personalizada
 
-## Principais Conceitos Demonstrados
+## Classes Explicadas
 
-### 1. Diferença entre Roles e Authorities
+### 1. SecurityConfig.java
 
-No Spring Security:
-
-- **Roles**: Representam um papel ou função de um usuário no sistema (EMPLOYEE, MANAGER, ADMIN)
-- **Authorities**: Representam permissões específicas para ações (READ_EMPLOYEE, CREATE_EMPLOYEE, etc.)
-
-### 2. Por que Implementamos Apenas com Authorities
-
-No Spring Security, há um comportamento importante que precisa ser compreendido quando se trabalha com roles e authorities simultaneamente:
-
-- **Conversão automática**: Uma role é automaticamente convertida para uma authority com prefixo "ROLE_"
-- **Conflito potencial**: Quando definimos simultaneamente `.roles()` e `.authorities()` para o mesmo usuário, o Spring pode ter comportamentos inesperados
-- **Solução adotada**: Para evitar esses problemas, implementamos tudo como authorities, incluindo as roles (prefixadas com "ROLE_")
+Esta classe é responsável pela configuração de segurança da aplicação:
 
 ```java
-// Abordagem INCORRETA (usada anteriormente):
-UserDetails john = users
-        .username("john")
-        .password("j123456")
-        .roles("EMPLOYEE")          // Isso cria authority "ROLE_EMPLOYEE"
-        .authorities("READ_EMPLOYEE") // Isso adiciona outra authority
-        .build();
-
-// Abordagem CORRETA (implementada agora):
-UserDetails john = users
-        .username("john")
-        .password("j123456")
-        .authorities("ROLE_EMPLOYEE", "READ_EMPLOYEE")
-        .build();
-```
-
-Esta abordagem torna o código mais previsível e evita problemas de integração entre roles e authorities.
-
-### 3. Configuração de Usuários com Authorities
-
-No arquivo `SecurityConfig.java`, cada usuário recebe authorities que representam tanto suas roles quanto suas permissões específicas:
-
-```java
-@Bean
-public InMemoryUserDetailsManager userDetailsManager() {
-    User.UserBuilder users = User.withDefaultPasswordEncoder();
-    
-    // User com role EMPLOYEE e permissões de leitura
-    UserDetails john = users
-            .username("john")
-            .password("j123456")
-            .authorities("ROLE_EMPLOYEE", "READ_EMPLOYEE")
-            .build();
-
-    // User com role MANAGER e permissões de leitura, criação e atualização
-    UserDetails mary = users
-            .username("mary")
-            .password("m123456")
-            .authorities("ROLE_MANAGER", "READ_EMPLOYEE", "CREATE_EMPLOYEE", "UPDATE_EMPLOYEE", "READ_REPORT")
-            .build();
-
-    // User com role ADMIN e todas as permissões
-    UserDetails susan = users
-            .username("susan")
-            .password("s123456")
-            .authorities("ROLE_ADMIN", "READ_EMPLOYEE", "CREATE_EMPLOYEE", "UPDATE_EMPLOYEE", "DELETE_EMPLOYEE", 
-                         "READ_REPORT", "CREATE_REPORT", "UPDATE_REPORT", "DELETE_REPORT")
-            .build();
-
-    return new InMemoryUserDetailsManager(john, mary, susan);
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity  // ← Essencial para @PreAuthorize funcionar
+public class SecurityConfig {
+    // Configurações...
 }
 ```
 
-Cada usuário agora tem:
-- **john**: Role EMPLOYEE + authority READ_EMPLOYEE
-- **mary**: Role MANAGER + authorities para leitura, criação e atualização
-- **susan**: Role ADMIN + todas as authorities
+**Pontos importantes:**
 
-### 4. Segurança Baseada em Authorities
+- `@EnableMethodSecurity`: **Obrigatória** para que as anotações de segurança em métodos (como `@PreAuthorize`) funcionem
+- Define a cadeia de filtros de segurança
+- Configura autenticação HTTP Basic para facilitar os testes
+- Cria usuários em memória com diferentes roles e authorities
 
-No arquivo `EmployeesController.java`, os endpoints são protegidos com base em authorities específicas:
+**Usuários configurados:**
+
+| Usuário | Senha | Roles | Authorities |
+|---------|-------|-------|-------------|
+| admin | password | ROLE_ADMIN | READ_RESOURCE, WRITE_RESOURCE |
+| manager | password | ROLE_MANAGER | - |
+| john | password | ROLE_USER | READ_RESOURCE, WRITE_RESOURCE |
+
+### 2. SecureController.java
+
+Esta é a classe principal do estudo, demonstrando diferentes variações da anotação `@PreAuthorize`:
+
+#### 2.1 Controle por Role Específica
 
 ```java
-@GetMapping("/{employeeId}")
-@PreAuthorize("hasAuthority('READ_EMPLOYEE')")
-public String getEmployee(@PathVariable String employeeId) {
-    return "Read Employee: " + employeeId;
-}
-
-@PostMapping
-@PreAuthorize("hasAuthority('CREATE_EMPLOYEE')")
-public String saveEmployee() {
-    return "Create Employee";
-}
-
-@PutMapping("/{employeeId}")
-@PreAuthorize("hasAuthority('UPDATE_EMPLOYEE')")
-public String updateEmployee(@PathVariable String employeeId) {
-    return "Update Employee: " + employeeId;
-}
-
-@DeleteMapping("/{employeeId}")
-@PreAuthorize("hasAuthority('DELETE_EMPLOYEE')")
-public String deleteEmployee(@PathVariable String employeeId) {
-    return "Delete Employee: " + employeeId;
+@PreAuthorize("hasRole('ROLE_ADMIN')")
+@GetMapping("/admin")
+public ResponseEntity<String> adminOnly() {
+    return ResponseEntity.ok("Admin access granted");
 }
 ```
 
-### 5. Segurança Baseada em Roles
+- **Função**: Permite acesso apenas para usuários com role `ROLE_ADMIN`
+- **Quem pode acessar**: Apenas o usuário `admin`
+- **Uso**: Endpoints exclusivos para administradores
 
-O arquivo `AdminController.java` continua usando controle de acesso baseado em roles, mas agora usando hasAuthority com o prefixo ROLE_:
+#### 2.2 Controle por Múltiplas Roles
 
 ```java
-@RestController
-@RequestMapping("/api/admin")
-@PreAuthorize("hasAuthority('ROLE_ADMIN')")  // ou pode usar hasRole('ADMIN')
-public class AdminController {
-    // Métodos protegidos pela role ADMIN
+@PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_MANAGER')")
+@GetMapping("/manager-or-admin")
+public ResponseEntity<String> managerOrAdmin() {
+    return ResponseEntity.ok("Manager or Admin access granted");
 }
 ```
 
-### 6. Combinando Roles e Authorities
+- **Função**: Permite acesso para usuários com qualquer uma das roles especificadas
+- **Quem pode acessar**: Usuários `admin` e `manager`
+- **Uso**: Endpoints para níveis hierárquicos superiores
 
-No arquivo `ReportsController.java`, demonstramos como combinar roles e authorities:
+#### 2.3 Controle por Authority Específica
 
 ```java
-@GetMapping("/combined-auth")
-@PreAuthorize("hasAuthority('READ_REPORT') and hasAuthority('ROLE_MANAGER')")  // ou hasRole('MANAGER')
-public String getReportWithCombinedAuth() {
-    return "This endpoint requires both READ_REPORT authority and MANAGER role";
+@PreAuthorize("hasAuthority('READ_RESOURCE')")
+@GetMapping("/read")
+public ResponseEntity<String> readResource() {
+    return ResponseEntity.ok("Read access granted");
 }
 ```
 
-Este endpoint requer tanto a authority específica quanto a role apropriada.
+- **Função**: Permite acesso apenas para usuários com a permissão `READ_RESOURCE`
+- **Quem pode acessar**: Usuários `admin` e `john`
+- **Uso**: Controle granular de permissões específicas
 
-## Estrutura de Controle de Acesso
+#### 2.4 Controle por Múltiplas Authorities
 
-### Authorities Implementadas
+```java
+@PreAuthorize("hasAnyAuthority('READ_RESOURCE', 'WRITE_RESOURCE')")
+@GetMapping("/read-or-write")
+public ResponseEntity<String> readOrWriteResource() {
+    return ResponseEntity.ok("Read or Write access granted");
+}
+```
 
-**Funcionários:**
-- READ_EMPLOYEE: Leitura de dados de funcionários
-- CREATE_EMPLOYEE: Criação de funcionários
-- UPDATE_EMPLOYEE: Atualização de funcionários
-- DELETE_EMPLOYEE: Exclusão de funcionários
+- **Função**: Permite acesso para usuários com qualquer uma das authorities especificadas
+- **Quem pode acessar**: Usuários `admin` e `john`
+- **Uso**: Endpoints que aceitam diferentes tipos de permissão
 
-**Relatórios:**
-- READ_REPORT: Leitura de relatórios
-- CREATE_REPORT: Criação de relatórios
-- UPDATE_REPORT: Atualização de relatórios
-- DELETE_REPORT: Exclusão de relatórios
+#### 2.5 Controle Baseado em Parâmetros (SpEL)
 
-**Roles (como authorities):**
-- ROLE_EMPLOYEE: Papel de funcionário comum
-- ROLE_MANAGER: Papel de gerente
-- ROLE_ADMIN: Papel de administrador
+```java
+@PreAuthorize("#username == authentication.principal.username")
+@GetMapping("/user/{username}")
+public ResponseEntity<String> accessUserData(@PathVariable String username) {
+    return ResponseEntity.ok("User data for " + username);
+}
+```
 
-### Roles e Suas Authorities
+- **Função**: Permite que usuários acessem apenas seus próprios dados
+- **Como funciona**: Compara o parâmetro `username` da URL com o nome do usuário autenticado
+- **Exemplo**: `/api/user/john` só pode ser acessado pelo usuário `john`
+- **Uso**: Proteção de dados pessoais do usuário
 
-- **ROLE_EMPLOYEE** (john):
-  - READ_EMPLOYEE
+#### 2.6 Controle com Lógica Personalizada
 
-- **ROLE_MANAGER** (mary):
-  - READ_EMPLOYEE
-  - CREATE_EMPLOYEE
-  - UPDATE_EMPLOYEE
-  - READ_REPORT
+```java
+@PreAuthorize("@securityService.isResourceOwner(authentication, #resourceId)")
+@GetMapping("/resource/{resourceId}")
+public ResponseEntity<String> accessCustomResource(@PathVariable String resourceId) {
+    return ResponseEntity.ok("Custom resource access for " + resourceId);
+}
+```
 
-- **ROLE_ADMIN** (susan):
-  - Todas as authorities
+- **Função**: Delega a verificação de autorização para um método personalizado
+- **Como funciona**: Chama o método `isResourceOwner` do `SecurityService`
+- **Exemplo**: `/api/resource/john_document` só pode ser acessado pelo usuário `john`
+- **Uso**: Lógicas complexas de autorização
+
+### 3. SecurityService.java
+
+Serviço que implementa lógica de autorização personalizada:
+
+```java
+@Service
+public class SecurityService {
+    public boolean isResourceOwner(Authentication authentication, String resourceId) {
+        return authentication.getName().equals(resourceId.split("_")[0]);
+    }
+}
+```
+
+- **Função**: Verifica se o usuário é "dono" do recurso
+- **Lógica**: Extrai o nome do usuário do `resourceId` e compara com o usuário autenticado
+- **Exemplo**: Para `resourceId = "john_document"`, só o usuário `john` terá acesso
+
+## Diferenças Importantes
+
+### hasRole() vs hasAuthority()
+
+| Aspecto | hasRole() | hasAuthority() |
+|---------|-----------|----------------|
+| **Prefixo** | Adiciona automaticamente "ROLE_" | Usa o valor exato |
+| **Uso** | Papéis/funções do usuário | Permissões específicas |
+| **Exemplo** | `hasRole('ADMIN')` → verifica `ROLE_ADMIN` | `hasAuthority('READ_RESOURCE')` |
+| **Flexibilidade** | Menos flexível | Mais granular |
+
+### Expressões SpEL Úteis
+
+| Expressão | Descrição |
+|-----------|-----------|
+| `hasRole('ADMIN')` | Verifica se possui role ADMIN |
+| `hasAnyRole('ADMIN', 'USER')` | Qualquer uma das roles |
+| `hasAuthority('READ')` | Verifica authority específica |
+| `hasAnyAuthority('READ', 'WRITE')` | Qualquer uma das authorities |
+| `#param == authentication.name` | Compara parâmetro com usuário |
+| `@service.method(args)` | Chama método de bean Spring |
 
 ## Como Testar
 
-Para testar as diferentes permissões de acesso:
+### 1. Inicie a aplicação
+### 2. Teste os endpoints com diferentes usuários:
 
-1. Inicie a aplicação
-2. Teste os endpoints com diferentes usuários:
+**Usando curl com autenticação básica:**
 
-   **API de Funcionários (/api/employees):**
-   
-   | Endpoint | Método | Authority Necessária | Usuários com Acesso |
-   |----------|--------|---------------------|---------------------|
-   | `/api/employees` | GET | nenhuma (permitAll) | Todos |
-   | `/api/employees/{id}` | GET | READ_EMPLOYEE | john, mary, susan |
-   | `/api/employees` | POST | CREATE_EMPLOYEE | mary, susan |
-   | `/api/employees/{id}` | PUT | UPDATE_EMPLOYEE | mary, susan |
-   | `/api/employees/{id}` | DELETE | DELETE_EMPLOYEE | susan |
+```bash
+# Teste como admin (acesso total)
+curl -u admin:password http://localhost:8080/api/admin
+curl -u admin:password http://localhost:8080/api/manager-or-admin
+curl -u admin:password http://localhost:8080/api/read
 
-   **API de Relatórios (/api/reports):**
-   
-   | Endpoint | Método | Authority Necessária | Usuários com Acesso |
-   |----------|--------|---------------------|---------------------|
-   | `/api/reports` | GET | READ_REPORT | mary, susan |
-   | `/api/reports/{id}` | GET | READ_REPORT | mary, susan |
-   | `/api/reports` | POST | CREATE_REPORT | susan |
-   | `/api/reports/{id}` | PUT | UPDATE_REPORT | susan |
-   | `/api/reports/{id}` | DELETE | DELETE_REPORT | susan |
-   | `/api/reports/combined-auth` | GET | READ_REPORT + ROLE_MANAGER | mary |
+# Teste como manager (acesso limitado)
+curl -u manager:password http://localhost:8080/api/manager-or-admin
+curl -u manager:password http://localhost:8080/api/admin  # ← Deve retornar 403
 
-   **API de Administradores (/api/admin):**
-   
-   | Endpoint | Método | Authority Necessária | Usuários com Acesso |
-   |----------|--------|---------------------|---------------------|
-   | `/api/admin` | GET | nenhuma (permitAll) | Todos |
-   | `/api/admin/**` | Outros | ROLE_ADMIN | susan |
+# Teste como john (acesso baseado em authorities)
+curl -u john:password http://localhost:8080/api/read
+curl -u john:password http://localhost:8080/api/user/john
+curl -u john:password http://localhost:8080/api/resource/john_document
 
-3. Para autenticar, use:
-   - Formulário de login padrão do Spring Security
-   - Autenticação Básica HTTP com as credenciais apropriadas
+# Teste de acesso negado
+curl -u john:password http://localhost:8080/api/user/admin  # ← Deve retornar 403
+```
 
-## Vantagens desta Abordagem
+### 3. Resultados Esperados
 
-1. **Controle granular**: Authorities permitem definir permissões específicas para operações individuais
-2. **Consistência interna**: Tratar roles e permissions uniformemente como authorities evita comportamentos inesperados
-3. **Flexibilidade**: Combinação de roles e authorities permite esquemas de autorização complexos
-4. **Expressividade**: As regras de segurança expressam claramente a intenção (ex: "hasAuthority('DELETE_EMPLOYEE')")
-5. **Compatibilidade**: Tanto `hasRole('ADMIN')` quanto `hasAuthority('ROLE_ADMIN')` funcionam com esta implementação
+| Endpoint | admin | manager | john |
+|----------|-------|---------|------|
+| `/api/admin` | ✅ 200 | ❌ 403 | ❌ 403 |
+| `/api/manager-or-admin` | ✅ 200 | ✅ 200 | ❌ 403 |
+| `/api/read` | ✅ 200 | ❌ 403 | ✅ 200 |
+| `/api/user/john` | ❌ 403 | ❌ 403 | ✅ 200 |
+| `/api/resource/john_doc` | ❌ 403 | ❌ 403 | ✅ 200 |
 
-## Pontos Importantes
+## Pontos de Aprendizado
 
-- O método `withDefaultPasswordEncoder()` é deprecado e recomendado apenas para demonstrações
-- Em ambiente de produção:
-  - Implemente authorities baseadas em banco de dados
-  - Use encoder de senha mais robusto (como BCrypt)
-  - Considere implementar mecanismos de cache para authorities
-  - Habilite CSRF e use HTTPS
+### 1. **@EnableMethodSecurity é obrigatória**
+Sem ela, as anotações `@PreAuthorize` são ignoradas.
 
-## Recursos Adicionais
+### 2. **SpEL é poderoso**
+Permite lógicas complexas diretamente na anotação.
 
-- [Documentação do Spring Security sobre Method Security](https://docs.spring.io/spring-security/reference/servlet/authorization/method-security.html)
-- [Diferença entre Roles e Authorities no Spring Security](https://docs.spring.io/spring-security/site/docs/current/reference/html5/#appendix-faq-role-vs-authority)
-- [Expressões SpEL para controle de acesso](https://docs.spring.io/spring-security/reference/servlet/authorization/expression-based.html)
+### 3. **Flexibilidade de Authorities**
+Authorities oferecem controle mais granular que roles.
+
+### 4. **Integração com Services**
+Pode chamar métodos de beans Spring para lógicas complexas.
+
+### 5. **Segurança por Parâmetros**
+Permite proteção baseada nos dados da requisição.
+
+## Próximos Passos de Estudo
+
+1. **@PostAuthorize**: Autorização após execução do método
+2. **@Secured**: Alternativa mais simples ao @PreAuthorize
+3. **Method Security com banco de dados**: Implementação real
+4. **Combinações complexas**: Usar operadores lógicos (AND, OR)
+5. **Performance**: Cache de authorities para aplicações grandes
+
+## Observações de Segurança
+
+⚠️ **Este código é apenas para estudos!**
+
+Para produção:
+- Use `BCryptPasswordEncoder` em vez de `{noop}`
+- Implemente authorities baseadas em banco de dados
+- Configure HTTPS
+- Habilite proteção CSRF quando necessário
+- Use JWT ou OAuth2 para autenticação stateless
