@@ -7,8 +7,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class SecurityService {
 
-    // Método usado em SpEL para verificar se o usuário autenticado é o dono do recurso.
-    // Extrai o nome do usuário do resourceId (ex.: "john_resource" -> "john") e compara com o nome do usuário autenticado.
+    // Verifica se o usuário autenticado é o dono do recurso.
+    // Compara o nome do usuário autenticado com a parte inicial do resourceId (ex.: "john_resource" -> "john").
     public boolean isResourceOwner(Authentication authentication, String resourceId) {
         return authentication.getName().equals(resourceId.split("_")[0]);
     }

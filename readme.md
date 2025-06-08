@@ -1,36 +1,33 @@
-# Spring Security 6 - Estudo da Anotação @PreAuthorize
+# Spring Security 6 - @PreAuthorize vs @Secured
 
-Este projeto demonstra o uso da anotação `@PreAuthorize` do Spring Security 6 com Spring Boot 3, explorando diferentes formas de controle de acesso a métodos e endpoints.
+Este projeto demonstra as diferenças entre as anotações `@PreAuthorize` e `@Secured` do Spring Security 6 com Spring Boot 3, comparando suas funcionalidades e casos de uso.
 
 ## Estrutura do Projeto
 
 O projeto é composto por três classes principais:
 
 - **`SecurityConfig.java`**: Configuração de segurança com usuários em memória
-- **`SecureController.java`**: Controller REST demonstrando diferentes usos do `@PreAuthorize`
+- **`SecureController.java`**: Controller REST demonstrando @Secured e @PreAuthorize
 - **`SecurityService.java`**: Serviço para lógica de autorização personalizada
 
 ## Classes Explicadas
 
 ### 1. SecurityConfig.java
 
-Esta classe é responsável pela configuração de segurança da aplicação:
-
 ```java
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity  // ← Essencial para @PreAuthorize funcionar
+@EnableMethodSecurity(securedEnabled = true, prePostEnabled = true)
 public class SecurityConfig {
     // Configurações...
 }
 ```
 
-**Pontos importantes:**
+**Configurações importantes:**
 
-- `@EnableMethodSecurity`: **Obrigatória** para que as anotações de segurança em métodos (como `@PreAuthorize`) funcionem
-- Define a cadeia de filtros de segurança
-- Configura autenticação HTTP Basic para facilitar os testes
-- Cria usuários em memória com diferentes roles e authorities
+- `securedEnabled = true`: **Habilita** a anotação `@Secured`
+- `prePostEnabled = true`: **Habilita** as anotações `@PreAuthorize` e `@PostAuthorize`
+- Ambas as configurações são necessárias para usar as respectivas anotações
 
 **Usuários configurados:**
 
@@ -42,38 +39,83 @@ public class SecurityConfig {
 
 ### 2. SecureController.java
 
-Esta é a classe principal do estudo, demonstrando diferentes variações da anotação `@PreAuthorize`:
+Este controller demonstra as diferenças práticas entre `@Secured` e `@PreAuthorize`:
 
-#### 2.1 Controle por Role Específica
+## Comparação: @Secured vs @PreAuthorize
 
+### Características Gerais
+
+| Aspecto | @Secured | @PreAuthorize |
+|---------|----------|---------------|
+| **Flexibilidade** | Limitada | Alta |
+| **SpEL Support** | ❌ Não | ✅ Sim |
+| **Lógica Complexa** | ❌ Não | ✅ Sim |
+| **Configuração** | `securedEnabled = true` | `prePostEnabled = true` |
+| **Performance** | Mais rápida | Ligeiramente mais lenta |
+| **Simplicidade** | Mais simples | Mais poderosa |
+
+### Exemplos Práticos
+
+#### 1. Controle por Role Única
+
+**@Secured:**
 ```java
-@PreAuthorize("hasRole('ROLE_ADMIN')")
+@Secured("ROLE_ADMIN")
 @GetMapping("/admin")
 public ResponseEntity<String> adminOnly() {
     return ResponseEntity.ok("Admin access granted");
 }
 ```
 
-- **Função**: Permite acesso apenas para usuários com role `ROLE_ADMIN`
-- **Quem pode acessar**: Apenas o usuário `admin`
-- **Uso**: Endpoints exclusivos para administradores
-
-#### 2.2 Controle por Múltiplas Roles
-
+**@PreAuthorize (equivalente):**
 ```java
-@PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_MANAGER')")
+@PreAuthorize("hasRole('ADMIN')")
+@GetMapping("/admin")
+public ResponseEntity<String> adminOnly() {
+    return ResponseEntity.ok("Admin access granted");
+}
+```
+
+**Diferenças:**
+- `@Secured` usa o nome exato da role: `"ROLE_ADMIN"`
+- `@PreAuthorize` usa função: `hasRole('ADMIN')` (adiciona `ROLE_` automaticamente)
+
+#### 2. Controle por Múltiplas Roles
+
+**@Secured:**
+```java
+@Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
 @GetMapping("/manager-or-admin")
 public ResponseEntity<String> managerOrAdmin() {
     return ResponseEntity.ok("Manager or Admin access granted");
 }
 ```
 
-- **Função**: Permite acesso para usuários com qualquer uma das roles especificadas
-- **Quem pode acessar**: Usuários `admin` e `manager`
-- **Uso**: Endpoints para níveis hierárquicos superiores
+**@PreAuthorize (equivalente):**
+```java
+@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+@GetMapping("/manager-or-admin")
+public ResponseEntity<String> managerOrAdmin() {
+    return ResponseEntity.ok("Manager or Admin access granted");
+}
+```
 
-#### 2.3 Controle por Authority Específica
+**Diferenças:**
+- `@Secured` usa array de strings: `{"ROLE_ADMIN", "ROLE_MANAGER"}`
+- `@PreAuthorize` usa função: `hasAnyRole('ADMIN', 'MANAGER')`
 
+#### 3. Controle por Authority Única
+
+**@Secured:**
+```java
+@Secured("READ_RESOURCE")
+@GetMapping("/read")
+public ResponseEntity<String> readResource() {
+    return ResponseEntity.ok("Read access granted");
+}
+```
+
+**@PreAuthorize (equivalente):**
 ```java
 @PreAuthorize("hasAuthority('READ_RESOURCE')")
 @GetMapping("/read")
@@ -82,12 +124,18 @@ public ResponseEntity<String> readResource() {
 }
 ```
 
-- **Função**: Permite acesso apenas para usuários com a permissão `READ_RESOURCE`
-- **Quem pode acessar**: Usuários `admin` e `john`
-- **Uso**: Controle granular de permissões específicas
+#### 4. Controle por Múltiplas Authorities
 
-#### 2.4 Controle por Múltiplas Authorities
+**@Secured:**
+```java
+@Secured({"READ_RESOURCE", "WRITE_RESOURCE"})
+@GetMapping("/read-or-write")
+public ResponseEntity<String> readOrWriteResource() {
+    return ResponseEntity.ok("Read or Write access granted");
+}
+```
 
+**@PreAuthorize (equivalente):**
 ```java
 @PreAuthorize("hasAnyAuthority('READ_RESOURCE', 'WRITE_RESOURCE')")
 @GetMapping("/read-or-write")
@@ -96,26 +144,7 @@ public ResponseEntity<String> readOrWriteResource() {
 }
 ```
 
-- **Função**: Permite acesso para usuários com qualquer uma das authorities especificadas
-- **Quem pode acessar**: Usuários `admin` e `john`
-- **Uso**: Endpoints que aceitam diferentes tipos de permissão
-
-#### 2.5 Controle Baseado em Parâmetros (SpEL)
-
-```java
-@PreAuthorize("#username == authentication.principal.username")
-@GetMapping("/user/{username}")
-public ResponseEntity<String> accessUserData(@PathVariable String username) {
-    return ResponseEntity.ok("User data for " + username);
-}
-```
-
-- **Função**: Permite que usuários acessem apenas seus próprios dados
-- **Como funciona**: Compara o parâmetro `username` da URL com o nome do usuário autenticado
-- **Exemplo**: `/api/user/john` só pode ser acessado pelo usuário `john`
-- **Uso**: Proteção de dados pessoais do usuário
-
-#### 2.6 Controle com Lógica Personalizada
+#### 5. Lógica Personalizada - Só @PreAuthorize
 
 ```java
 @PreAuthorize("@securityService.isResourceOwner(authentication, #resourceId)")
@@ -125,110 +154,179 @@ public ResponseEntity<String> accessCustomResource(@PathVariable String resource
 }
 ```
 
-- **Função**: Delega a verificação de autorização para um método personalizado
-- **Como funciona**: Chama o método `isResourceOwner` do `SecurityService`
-- **Exemplo**: `/api/resource/john_document` só pode ser acessado pelo usuário `john`
-- **Uso**: Lógicas complexas de autorização
+**⚠️ IMPOSSÍVEL com @Secured!**
 
-### 3. SecurityService.java
+`@Secured` não suporta:
+- Expressões SpEL
+- Chamadas para métodos de services
+- Lógica baseada em parâmetros
+- Verificações dinâmicas
 
-Serviço que implementa lógica de autorização personalizada:
+## Limitações de Cada Anotação
 
+### @Secured - Limitações
+
+❌ **Não suporta:**
+- Expressões SpEL
+- Lógica AND (`hasRole('ADMIN') AND hasAuthority('WRITE')`)
+- Verificações baseadas em parâmetros
+- Chamadas para métodos personalizados
+- Condições dinâmicas
+
+✅ **Suporta apenas:**
+- Lista simples de roles/authorities
+- Verificação OR implícita (qualquer uma da lista)
+
+### @PreAuthorize - Limitações
+
+❌ **Desvantagens:**
+- Ligeiramente mais lenta (devido ao parsing SpEL)
+- Mais complexa para casos simples
+- Curva de aprendizado maior
+
+✅ **Vantagens:**
+- Suporte completo a SpEL
+- Lógica complexa (AND, OR, NOT)
+- Verificações baseadas em parâmetros
+- Integração com services Spring
+
+## Casos de Uso Recomendados
+
+### Use @Secured quando:
+
+1. **Verificações simples** de role/authority
+2. **Performance crítica** (diferença mínima, mas existe)
+3. **Equipe menos experiente** com Spring Security
+4. **Casos estáticos** onde as regras não mudam
+
+**Exemplo típico:**
 ```java
-@Service
-public class SecurityService {
-    public boolean isResourceOwner(Authentication authentication, String resourceId) {
-        return authentication.getName().equals(resourceId.split("_")[0]);
-    }
-}
+@Secured("ROLE_ADMIN")  // Simples e direto
+public void adminOnlyMethod() { }
 ```
 
-- **Função**: Verifica se o usuário é "dono" do recurso
-- **Lógica**: Extrai o nome do usuário do `resourceId` e compara com o usuário autenticado
-- **Exemplo**: Para `resourceId = "john_document"`, só o usuário `john` terá acesso
+### Use @PreAuthorize quando:
 
-## Diferenças Importantes
+1. **Lógica complexa** de autorização
+2. **Verificações baseadas em parâmetros**
+3. **Combinação de múltiplas condições**
+4. **Integração com services personalizados**
+5. **Verificações dinâmicas**
 
-### hasRole() vs hasAuthority()
+**Exemplos típicos:**
+```java
+// Lógica complexa
+@PreAuthorize("hasRole('ADMIN') and hasAuthority('WRITE_RESOURCE')")
 
-| Aspecto | hasRole() | hasAuthority() |
-|---------|-----------|----------------|
-| **Prefixo** | Adiciona automaticamente "ROLE_" | Usa o valor exato |
-| **Uso** | Papéis/funções do usuário | Permissões específicas |
-| **Exemplo** | `hasRole('ADMIN')` → verifica `ROLE_ADMIN` | `hasAuthority('READ_RESOURCE')` |
-| **Flexibilidade** | Menos flexível | Mais granular |
+// Verificação de parâmetro
+@PreAuthorize("#userId == authentication.principal.id")
 
-### Expressões SpEL Úteis
+// Service personalizado
+@PreAuthorize("@securityService.canAccess(authentication, #resourceId)")
+```
+
+## Expressões SpEL Úteis (Apenas @PreAuthorize)
 
 | Expressão | Descrição |
 |-----------|-----------|
-| `hasRole('ADMIN')` | Verifica se possui role ADMIN |
-| `hasAnyRole('ADMIN', 'USER')` | Qualquer uma das roles |
+| `hasRole('ADMIN')` | Verifica role específica |
+| `hasAnyRole('ADMIN', 'MANAGER')` | Qualquer uma das roles |
 | `hasAuthority('READ')` | Verifica authority específica |
 | `hasAnyAuthority('READ', 'WRITE')` | Qualquer uma das authorities |
 | `#param == authentication.name` | Compara parâmetro com usuário |
 | `@service.method(args)` | Chama método de bean Spring |
+| `hasRole('ADMIN') and hasAuthority('WRITE')` | Lógica AND |
+| `hasRole('ADMIN') or hasRole('MANAGER')` | Lógica OR |
+| `!hasRole('GUEST')` | Lógica NOT |
 
 ## Como Testar
 
-### 1. Inicie a aplicação
-### 2. Teste os endpoints com diferentes usuários:
-
-**Usando curl com autenticação básica:**
+### Comandos curl para teste:
 
 ```bash
-# Teste como admin (acesso total)
+# Endpoints protegidos por @Secured
+
+# Admin access - Só admin
 curl -u admin:password http://localhost:8080/api/admin
+curl -u manager:password http://localhost:8080/api/admin  # ← 403 Forbidden
+
+# Manager or Admin - admin e manager
 curl -u admin:password http://localhost:8080/api/manager-or-admin
-curl -u admin:password http://localhost:8080/api/read
-
-# Teste como manager (acesso limitado)
 curl -u manager:password http://localhost:8080/api/manager-or-admin
-curl -u manager:password http://localhost:8080/api/admin  # ← Deve retornar 403
+curl -u john:password http://localhost:8080/api/manager-or-admin  # ← 403 Forbidden
 
-# Teste como john (acesso baseado em authorities)
+# Read access - admin e john (têm READ_RESOURCE)
+curl -u admin:password http://localhost:8080/api/read
 curl -u john:password http://localhost:8080/api/read
-curl -u john:password http://localhost:8080/api/user/john
-curl -u john:password http://localhost:8080/api/resource/john_document
+curl -u manager:password http://localhost:8080/api/read  # ← 403 Forbidden
 
-# Teste de acesso negado
-curl -u john:password http://localhost:8080/api/user/admin  # ← Deve retornar 403
+# Read or Write - admin e john
+curl -u admin:password http://localhost:8080/api/read-or-write
+curl -u john:password http://localhost:8080/api/read-or-write
+
+# Endpoint protegido por @PreAuthorize (lógica personalizada)
+curl -u john:password http://localhost:8080/api/resource/john_document
+curl -u john:password http://localhost:8080/api/resource/admin_document  # ← 403 Forbidden
 ```
 
-### 3. Resultados Esperados
+### Matriz de Acesso
 
 | Endpoint | admin | manager | john |
 |----------|-------|---------|------|
 | `/api/admin` | ✅ 200 | ❌ 403 | ❌ 403 |
 | `/api/manager-or-admin` | ✅ 200 | ✅ 200 | ❌ 403 |
 | `/api/read` | ✅ 200 | ❌ 403 | ✅ 200 |
-| `/api/user/john` | ❌ 403 | ❌ 403 | ✅ 200 |
+| `/api/read-or-write` | ✅ 200 | ❌ 403 | ✅ 200 |
 | `/api/resource/john_doc` | ❌ 403 | ❌ 403 | ✅ 200 |
+| `/api/resource/admin_doc` | ❌ 403 | ❌ 403 | ❌ 403 |
 
-## Pontos de Aprendizado
+## Migração: @Secured → @PreAuthorize
 
-### 1. **@EnableMethodSecurity é obrigatória**
-Sem ela, as anotações `@PreAuthorize` são ignoradas.
+### Conversões Comuns
 
-### 2. **SpEL é poderoso**
-Permite lógicas complexas diretamente na anotação.
+```java
+// Role única
+@Secured("ROLE_ADMIN") 
+→ @PreAuthorize("hasRole('ADMIN')")
 
-### 3. **Flexibilidade de Authorities**
-Authorities oferecem controle mais granular que roles.
+// Múltiplas roles
+@Secured({"ROLE_ADMIN", "ROLE_MANAGER"}) 
+→ @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
 
-### 4. **Integração com Services**
-Pode chamar métodos de beans Spring para lógicas complexas.
+// Authority única
+@Secured("READ_RESOURCE") 
+→ @PreAuthorize("hasAuthority('READ_RESOURCE')")
 
-### 5. **Segurança por Parâmetros**
-Permite proteção baseada nos dados da requisição.
+// Múltiplas authorities
+@Secured({"READ_RESOURCE", "WRITE_RESOURCE"}) 
+→ @PreAuthorize("hasAnyAuthority('READ_RESOURCE', 'WRITE_RESOURCE')")
+```
+
+## Recomendações Gerais
+
+### Para Novos Projetos:
+**Use @PreAuthorize** - Mais flexível e poderosa, padrão moderno
+
+### Para Projetos Legados:
+- **Mantenha @Secured** se já funciona bem
+- **Migre gradualmente** para @PreAuthorize quando precisar de mais funcionalidades
+
+### Para Performance Crítica:
+- **@Secured** é ligeiramente mais rápida
+- Diferença é mínima na maioria dos casos
+- Use profiling antes de otimizar
+
+### Para Equipes:
+- **@Secured**: Mais fácil para iniciantes
+- **@PreAuthorize**: Mais poderosa para desenvolvedores experientes
 
 ## Próximos Passos de Estudo
 
-1. **@PostAuthorize**: Autorização após execução do método
-2. **@Secured**: Alternativa mais simples ao @PreAuthorize
-3. **Method Security com banco de dados**: Implementação real
-4. **Combinações complexas**: Usar operadores lógicos (AND, OR)
-5. **Performance**: Cache de authorities para aplicações grandes
+1. **@PostAuthorize**: Verificação após execução do método
+2. **@PreFilter/@PostFilter**: Filtragem de coleções
+3. **Method Security com JPA**: Integração com entidades
+4. **Custom Security Expressions**: Criar suas próprias funções SpEL
+5. **Performance Tuning**: Otimização para aplicações grandes
 
 ## Observações de Segurança
 
@@ -238,5 +336,5 @@ Para produção:
 - Use `BCryptPasswordEncoder` em vez de `{noop}`
 - Implemente authorities baseadas em banco de dados
 - Configure HTTPS
-- Habilite proteção CSRF quando necessário
 - Use JWT ou OAuth2 para autenticação stateless
+- Implemente auditoria de segurança
