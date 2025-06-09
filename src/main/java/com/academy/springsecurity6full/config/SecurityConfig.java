@@ -13,7 +13,7 @@ import org.springframework.security.web.SecurityFilterChain;
 // Configuração de segurança com usuários em memória
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(securedEnabled = true, prePostEnabled = true) // Habilita @Secured e @PreAuthorize
+@EnableMethodSecurity(securedEnabled = true, prePostEnabled = true) // Habilita @Secured, @PreAuthorize e @PostAuthorize
 public class SecurityConfig {
 
 	// Configura a cadeia de filtros de segurança do Spring Security

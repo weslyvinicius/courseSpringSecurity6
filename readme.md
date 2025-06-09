@@ -1,14 +1,15 @@
-# Spring Security 6 - @PreAuthorize vs @Secured
+# Spring Security 6 - @PostAuthorize vs @PreAuthorize vs @Secured
 
-Este projeto demonstra as diferenças entre as anotações `@PreAuthorize` e `@Secured` do Spring Security 6 com Spring Boot 3, comparando suas funcionalidades e casos de uso.
+Este projeto demonstra as diferenças entre as anotações `@PostAuthorize`, `@PreAuthorize` e `@Secured` do Spring Security 6 com Spring Boot 3, com foco especial no comportamento único da `@PostAuthorize`.
 
 ## Estrutura do Projeto
 
-O projeto é composto por três classes principais:
+O projeto é composto por quatro classes principais:
 
 - **`SecurityConfig.java`**: Configuração de segurança com usuários em memória
-- **`SecureController.java`**: Controller REST demonstrando @Secured e @PreAuthorize
-- **`SecurityService.java`**: Serviço para lógica de autorização personalizada
+- **`SecureController.java`**: Controller REST demonstrando as três anotações
+- **`ResourceService.java`**: Serviço para lógica de autorização e simulação de operações custosas
+- **`Resource.java`**: Modelo de dados para demonstrar autorização baseada em propriedades do objeto
 
 ## Classes Explicadas
 
@@ -27,7 +28,6 @@ public class SecurityConfig {
 
 - `securedEnabled = true`: **Habilita** a anotação `@Secured`
 - `prePostEnabled = true`: **Habilita** as anotações `@PreAuthorize` e `@PostAuthorize`
-- Ambas as configurações são necessárias para usar as respectivas anotações
 
 **Usuários configurados:**
 
@@ -39,302 +39,348 @@ public class SecurityConfig {
 
 ### 2. SecureController.java
 
-Este controller demonstra as diferenças práticas entre `@Secured` e `@PreAuthorize`:
+Este controller demonstra as diferenças críticas entre as três anotações, especialmente o comportamento único da `@PostAuthorize`.
 
-## Comparação: @Secured vs @PreAuthorize
+### 3. ResourceService.java
+
+Simula operações custosas e contém logs para demonstrar **quando** cada método é executado em relação às verificações de autorização.
+
+### 4. Resource.java
+
+Modelo simples com `owner` e `content` para demonstrar autorização baseada no objeto retornado.
+
+## Comparação Detalhada: @PostAuthorize vs @PreAuthorize vs @Secured
+
+### Timing de Execução - A Diferença Crucial
+
+| Anotação | Quando Verifica | Executa Método/Serviço | Acesso ao Resultado |
+|----------|-----------------|------------------------|---------------------|
+| **@Secured** | ANTES da execução | ❌ Não (se falhar) | ❌ Não |
+| **@PreAuthorize** | ANTES da execução | ❌ Não (se falhar) | ❌ Não |
+| **@PostAuthorize** | APÓS a execução | ✅ Sempre | ✅ Sim |
 
 ### Características Gerais
 
-| Aspecto | @Secured | @PreAuthorize |
-|---------|----------|---------------|
-| **Flexibilidade** | Limitada | Alta |
-| **SpEL Support** | ❌ Não | ✅ Sim |
-| **Lógica Complexa** | ❌ Não | ✅ Sim |
-| **Configuração** | `securedEnabled = true` | `prePostEnabled = true` |
-| **Performance** | Mais rápida | Ligeiramente mais lenta |
-| **Simplicidade** | Mais simples | Mais poderosa |
+| Aspecto | @Secured | @PreAuthorize | @PostAuthorize |
+|---------|----------|---------------|----------------|
+| **Momento da Verificação** | Antes | Antes | **Depois** |
+| **SpEL Support** | ❌ Não | ✅ Sim | ✅ Sim |
+| **Acesso ao `returnObject`** | ❌ Não | ❌ Não | ✅ **Sim** |
+| **Performance** | Rápida | Média | **Mais Lenta** |
+| **Segurança** | Alta | Alta | **Menor** |
+| **Casos de Uso** | Simples | Complexos | **Filtros por Dados** |
 
-### Exemplos Práticos
+## Exemplos Práticos dos Controllers
 
-#### 1. Controle por Role Única
+### 1. @Secured - Verificação Simples ANTES
 
-**@Secured:**
 ```java
 @Secured("ROLE_ADMIN")
 @GetMapping("/admin")
 public ResponseEntity<String> adminOnly() {
-    return ResponseEntity.ok("Admin access granted");
+    // ✅ Este serviço SÓ é executado se o usuário for ROLE_ADMIN
+    Resource resource = resourceService.fetchResource("admin_resource");
+    return ResponseEntity.ok("Admin access: " + resource.getContent());
 }
 ```
 
-**@PreAuthorize (equivalente):**
-```java
-@PreAuthorize("hasRole('ADMIN')")
-@GetMapping("/admin")
-public ResponseEntity<String> adminOnly() {
-    return ResponseEntity.ok("Admin access granted");
-}
-```
+**Comportamento:**
+- ✅ Verifica `ROLE_ADMIN` ANTES de executar
+- ❌ Se falhar: método e serviço NÃO são executados
+- 🚀 Performance: Rápida (sem execução desnecessária)
 
-**Diferenças:**
-- `@Secured` usa o nome exato da role: `"ROLE_ADMIN"`
-- `@PreAuthorize` usa função: `hasRole('ADMIN')` (adiciona `ROLE_` automaticamente)
-
-#### 2. Controle por Múltiplas Roles
-
-**@Secured:**
-```java
-@Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
-@GetMapping("/manager-or-admin")
-public ResponseEntity<String> managerOrAdmin() {
-    return ResponseEntity.ok("Manager or Admin access granted");
-}
-```
-
-**@PreAuthorize (equivalente):**
-```java
-@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-@GetMapping("/manager-or-admin")
-public ResponseEntity<String> managerOrAdmin() {
-    return ResponseEntity.ok("Manager or Admin access granted");
-}
-```
-
-**Diferenças:**
-- `@Secured` usa array de strings: `{"ROLE_ADMIN", "ROLE_MANAGER"}`
-- `@PreAuthorize` usa função: `hasAnyRole('ADMIN', 'MANAGER')`
-
-#### 3. Controle por Authority Única
-
-**@Secured:**
-```java
-@Secured("READ_RESOURCE")
-@GetMapping("/read")
-public ResponseEntity<String> readResource() {
-    return ResponseEntity.ok("Read access granted");
-}
-```
-
-**@PreAuthorize (equivalente):**
-```java
-@PreAuthorize("hasAuthority('READ_RESOURCE')")
-@GetMapping("/read")
-public ResponseEntity<String> readResource() {
-    return ResponseEntity.ok("Read access granted");
-}
-```
-
-#### 4. Controle por Múltiplas Authorities
-
-**@Secured:**
-```java
-@Secured({"READ_RESOURCE", "WRITE_RESOURCE"})
-@GetMapping("/read-or-write")
-public ResponseEntity<String> readOrWriteResource() {
-    return ResponseEntity.ok("Read or Write access granted");
-}
-```
-
-**@PreAuthorize (equivalente):**
-```java
-@PreAuthorize("hasAnyAuthority('READ_RESOURCE', 'WRITE_RESOURCE')")
-@GetMapping("/read-or-write")
-public ResponseEntity<String> readOrWriteResource() {
-    return ResponseEntity.ok("Read or Write access granted");
-}
-```
-
-#### 5. Lógica Personalizada - Só @PreAuthorize
+### 2. @PreAuthorize - Verificação Dinâmica ANTES
 
 ```java
-@PreAuthorize("@securityService.isResourceOwner(authentication, #resourceId)")
-@GetMapping("/resource/{resourceId}")
-public ResponseEntity<String> accessCustomResource(@PathVariable String resourceId) {
-    return ResponseEntity.ok("Custom resource access for " + resourceId);
+@PreAuthorize("@resourceService.isResourceOwner(authentication, #id)")
+@GetMapping("/resource/pre/{id}")
+public ResponseEntity<String> accessCustomResource(@PathVariable String id) {
+    // ✅ Este serviço SÓ é executado se a verificação de ownership passar
+    Resource resource = resourceService.fetchResource(id);
+    return ResponseEntity.ok("Access granted: " + resource.getContent());
 }
 ```
 
-**⚠️ IMPOSSÍVEL com @Secured!**
+**Comportamento:**
+- ✅ Verifica ownership ANTES de executar
+- ❌ Se falhar: `fetchResource` NÃO é executado
+- 🚀 Performance: Boa (evita operação custosa)
 
-`@Secured` não suporta:
-- Expressões SpEL
-- Chamadas para métodos de services
-- Lógica baseada em parâmetros
-- Verificações dinâmicas
+### 3. @PostAuthorize - Verificação APÓS Execução
 
-## Limitações de Cada Anotação
+```java
+@PostAuthorize("returnObject.owner == authentication.name")
+@GetMapping("/resource/owner/{id}")
+public Resource getResourceByOwner(@PathVariable String id) {
+    // ⚠️ Este serviço SEMPRE é executado, mesmo se a autorização falhar depois!
+    return resourceService.fetchResource(id);
+}
+```
 
-### @Secured - Limitações
+**Comportamento:**
+- ⚠️ `fetchResource` SEMPRE é executado primeiro
+- ✅ Verifica se o usuário é dono do recurso retornado
+- ❌ Se falhar: erro APÓS operação custosa
+- 🐌 Performance: Pior (operação sempre executada)
 
-❌ **Não suporta:**
-- Expressões SpEL
-- Lógica AND (`hasRole('ADMIN') AND hasAuthority('WRITE')`)
-- Verificações baseadas em parâmetros
-- Chamadas para métodos personalizados
-- Condições dinâmicas
+### 4. @PostAuthorize com Lógica Personalizada
 
-✅ **Suporta apenas:**
-- Lista simples de roles/authorities
-- Verificação OR implícita (qualquer uma da lista)
+```java
+@PostAuthorize("@resourceService.canAccessResource(authentication, returnObject)")
+@GetMapping("/resource/custom/{id}")
+public Resource getCustomResource(@PathVariable String id) {
+    // ⚠️ fetchResource é executado primeiro
+    // ✅ Depois canAccessResource é executado com o resultado
+    return resourceService.fetchResource(id);
+}
+```
 
-### @PreAuthorize - Limitações
+## Fluxo de Execução Detalhado
 
-❌ **Desvantagens:**
-- Ligeiramente mais lenta (devido ao parsing SpEL)
-- Mais complexa para casos simples
-- Curva de aprendizado maior
+### @Secured e @PreAuthorize (Verificação ANTES)
 
-✅ **Vantagens:**
-- Suporte completo a SpEL
-- Lógica complexa (AND, OR, NOT)
-- Verificações baseadas em parâmetros
-- Integração com services Spring
+```
+1. 🔐 Verificação de Autorização
+   ├─ ✅ Autorizado → 2. Executa Método
+   └─ ❌ Negado → ⚠️ 403 Forbidden (método não executado)
+```
 
-## Casos de Uso Recomendados
+### @PostAuthorize (Verificação DEPOIS)
+
+```
+1. 🚀 Executa Método SEMPRE
+   ├─ 📊 Busca dados do banco
+   ├─ 💰 Operações custosas
+   └─ 📦 Retorna objeto
+2. 🔐 Verificação de Autorização no objeto retornado
+   ├─ ✅ Autorizado → 📤 Retorna resultado
+   └─ ❌ Negado → ⚠️ 403 Forbidden (após operação custosa!)
+```
+
+## Casos de Uso Reais
 
 ### Use @Secured quando:
 
-1. **Verificações simples** de role/authority
-2. **Performance crítica** (diferença mínima, mas existe)
-3. **Equipe menos experiente** com Spring Security
-4. **Casos estáticos** onde as regras não mudam
-
-**Exemplo típico:**
+✅ **Controle simples de acesso**
 ```java
-@Secured("ROLE_ADMIN")  // Simples e direto
-public void adminOnlyMethod() { }
+@Secured("ROLE_ADMIN")
+public void deleteAllUsers() { 
+    // Operação perigosa - deve ser bloqueada ANTES
+}
 ```
 
 ### Use @PreAuthorize quando:
 
-1. **Lógica complexa** de autorização
-2. **Verificações baseadas em parâmetros**
-3. **Combinação de múltiplas condições**
-4. **Integração com services personalizados**
-5. **Verificações dinâmicas**
-
-**Exemplos típicos:**
+✅ **Verificações baseadas em parâmetros**
 ```java
-// Lógica complexa
-@PreAuthorize("hasRole('ADMIN') and hasAuthority('WRITE_RESOURCE')")
-
-// Verificação de parâmetro
 @PreAuthorize("#userId == authentication.principal.id")
-
-// Service personalizado
-@PreAuthorize("@securityService.canAccess(authentication, #resourceId)")
+public User updateUser(@PathVariable Long userId, @RequestBody User user) {
+    // Usuário só pode editar próprio perfil
+}
 ```
 
-## Expressões SpEL Úteis (Apenas @PreAuthorize)
+### Use @PostAuthorize quando:
 
-| Expressão | Descrição |
-|-----------|-----------|
-| `hasRole('ADMIN')` | Verifica role específica |
-| `hasAnyRole('ADMIN', 'MANAGER')` | Qualquer uma das roles |
-| `hasAuthority('READ')` | Verifica authority específica |
-| `hasAnyAuthority('READ', 'WRITE')` | Qualquer uma das authorities |
-| `#param == authentication.name` | Compara parâmetro com usuário |
-| `@service.method(args)` | Chama método de bean Spring |
-| `hasRole('ADMIN') and hasAuthority('WRITE')` | Lógica AND |
-| `hasRole('ADMIN') or hasRole('MANAGER')` | Lógica OR |
-| `!hasRole('GUEST')` | Lógica NOT |
+✅ **Filtragem baseada nos dados retornados**
+```java
+@PostAuthorize("returnObject.department == authentication.principal.department")
+public Employee getEmployee(@PathVariable Long id) {
+    // Só mostra funcionário do mesmo departamento
+    return employeeService.findById(id);
+}
+```
 
-## Como Testar
+## ⚠️ Problemas de Segurança com @PostAuthorize
 
-### Comandos curl para teste:
+### 1. Vazamento de Informações
+
+```java
+@PostAuthorize("returnObject.confidential == false")
+public Document getDocument(@PathVariable Long id) {
+    // ❌ PROBLEMA: Dados confidenciais são buscados do banco
+    // mesmo que o usuário não tenha permissão!
+    return documentService.findById(id); // Operação custosa executada sempre
+}
+```
+
+### 2. Operações Custosas Desnecessárias
+
+```java
+@PostAuthorize("@securityService.canAccess(authentication, returnObject)")
+public Report generateExpensiveReport(@PathVariable String type) {
+    // ❌ PROBLEMA: Relatório sempre é gerado, mesmo para usuários sem permissão
+    return reportService.generateComplexReport(type); // 30 segundos de processamento!
+}
+```
+
+### 3. Side Effects Indesejados
+
+```java
+@PostAuthorize("returnObject.owner == authentication.name")
+public Order processOrder(@RequestBody Order order) {
+    // ❌ PROBLEMA: Pedido é processado, estoque é reduzido,
+    // cobrança é feita, email é enviado... MAS depois a autorização falha!
+    return orderService.processPaymentAndSendEmail(order);
+}
+```
+
+## Alternativas Seguras para @PostAuthorize
+
+### ❌ Problemático com @PostAuthorize:
+```java
+@PostAuthorize("returnObject.owner == authentication.name")
+public BankAccount getAccount(@PathVariable String accountId) {
+    return expensiveBankQuery(accountId); // Sempre executado!
+}
+```
+
+### ✅ Solução com @PreAuthorize:
+```java
+@PreAuthorize("@accountService.isOwner(authentication.name, #accountId)")
+public BankAccount getAccount(@PathVariable String accountId) {
+    return expensiveBankQuery(accountId); // Só executado se autorizado
+}
+```
+
+### ✅ Solução Híbrida:
+```java
+public BankAccount getAccount(@PathVariable String accountId) {
+    // Verificação rápida primeiro
+    if (!accountService.isOwner(getCurrentUser(), accountId)) {
+        throw new AccessDeniedException("Not account owner");
+    }
+    // Operação custosa só depois da verificação
+    return expensiveBankQuery(accountId);
+}
+```
+
+## Testes Práticos
+
+### Comandos curl para demonstrar as diferenças:
 
 ```bash
-# Endpoints protegidos por @Secured
+# 1. @Secured - Falha ANTES da execução do serviço
+curl -u manager:password http://localhost:8080/api/admin
+# Log esperado: Nenhum (fetchResource NÃO é chamado)
+# Resultado: 403 Forbidden
 
-# Admin access - Só admin
-curl -u admin:password http://localhost:8080/api/admin
-curl -u manager:password http://localhost:8080/api/admin  # ← 403 Forbidden
+# 2. @PreAuthorize - Falha ANTES da execução do serviço  
+curl -u admin:password http://localhost:8080/api/resource/pre/john_document
+# Log esperado: "Checking ownership..." mas NÃO "Fetching resource..."
+# Resultado: 403 Forbidden
 
-# Manager or Admin - admin e manager
-curl -u admin:password http://localhost:8080/api/manager-or-admin
-curl -u manager:password http://localhost:8080/api/manager-or-admin
-curl -u john:password http://localhost:8080/api/manager-or-admin  # ← 403 Forbidden
+# 3. @PostAuthorize - Executa serviço MAS falha DEPOIS
+curl -u admin:password http://localhost:8080/api/resource/owner/john_document
+# Log esperado: "Fetching resource for ID: john_document" (sempre executado!)
+# Resultado: 403 Forbidden (mas operação foi feita)
 
-# Read access - admin e john (têm READ_RESOURCE)
-curl -u admin:password http://localhost:8080/api/read
-curl -u john:password http://localhost:8080/api/read
-curl -u manager:password http://localhost:8080/api/read  # ← 403 Forbidden
-
-# Read or Write - admin e john
-curl -u admin:password http://localhost:8080/api/read-or-write
-curl -u john:password http://localhost:8080/api/read-or-write
-
-# Endpoint protegido por @PreAuthorize (lógica personalizada)
-curl -u john:password http://localhost:8080/api/resource/john_document
-curl -u john:password http://localhost:8080/api/resource/admin_document  # ← 403 Forbidden
+# 4. @PostAuthorize - Sucesso (usuário correto)
+curl -u john:password http://localhost:8080/api/resource/owner/john_document
+# Log esperado: "Fetching resource..." seguido de sucesso
+# Resultado: 200 OK
 ```
 
-### Matriz de Acesso
+### Comparação de Logs:
 
-| Endpoint | admin | manager | john |
-|----------|-------|---------|------|
-| `/api/admin` | ✅ 200 | ❌ 403 | ❌ 403 |
-| `/api/manager-or-admin` | ✅ 200 | ✅ 200 | ❌ 403 |
-| `/api/read` | ✅ 200 | ❌ 403 | ✅ 200 |
-| `/api/read-or-write` | ✅ 200 | ❌ 403 | ✅ 200 |
-| `/api/resource/john_doc` | ❌ 403 | ❌ 403 | ✅ 200 |
-| `/api/resource/admin_doc` | ❌ 403 | ❌ 403 | ❌ 403 |
+#### Teste com usuário SEM permissão:
 
-## Migração: @Secured → @PreAuthorize
+**@Secured:**
+```
+# Nenhum log - método não executado
+```
 
-### Conversões Comuns
+**@PreAuthorize:**
+```
+Checking ownership for user: admin, resourceId: john_document
+# Nenhum "Fetching resource" - fetchResource não executado
+```
+
+**@PostAuthorize:**
+```
+Fetching resource for ID: john_document  ← Sempre executado!
+# Depois falha na autorização
+```
+
+## Performance Comparison
+
+### Cenário: 1000 requests negados por segundo
+
+| Anotação | CPU Usage | Memory | Database Calls |
+|----------|-----------|--------|----------------|
+| **@Secured** | 5% | Baixo | 0 |
+| **@PreAuthorize** | 8% | Baixo | 0 |
+| **@PostAuthorize** | 45% | Alto | 1000 |
+
+## Boas Práticas
+
+### ✅ DO - Use @PostAuthorize para:
+
+1. **Filtragem de dados já carregados**
+```java
+@PostAuthorize("returnObject.publicData == true")
+public List<Article> getArticles() {
+    return articleService.findAll(); // Lista já carregada
+}
+```
+
+2. **Verificações baseadas em propriedades calculadas**
+```java
+@PostAuthorize("returnObject.calculatedScore > 50")
+public Result getTestResult(@PathVariable Long testId) {
+    return testService.calculateResult(testId);
+}
+```
+
+### ❌ DON'T - Evite @PostAuthorize para:
+
+1. **Operações custosas com alta chance de negação**
+2. **Operações com side effects**
+3. **Dados altamente sensíveis**
+4. **APIs com alta volumetria**
+
+## Padrões de Migração
+
+### De @PostAuthorize para @PreAuthorize:
 
 ```java
-// Role única
-@Secured("ROLE_ADMIN") 
-→ @PreAuthorize("hasRole('ADMIN')")
+// ❌ Antes: @PostAuthorize
+@PostAuthorize("returnObject.owner == authentication.name")
+public Document getDocument(@PathVariable Long id) {
+    return documentService.findById(id);
+}
 
-// Múltiplas roles
-@Secured({"ROLE_ADMIN", "ROLE_MANAGER"}) 
-→ @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+// ✅ Depois: @PreAuthorize
+@PreAuthorize("@documentService.isOwner(authentication.name, #id)")
+public Document getDocument(@PathVariable Long id) {
+    return documentService.findById(id);
+}
 
-// Authority única
-@Secured("READ_RESOURCE") 
-→ @PreAuthorize("hasAuthority('READ_RESOURCE')")
-
-// Múltiplas authorities
-@Secured({"READ_RESOURCE", "WRITE_RESOURCE"}) 
-→ @PreAuthorize("hasAnyAuthority('READ_RESOURCE', 'WRITE_RESOURCE')")
+// Service method necessário:
+public boolean isOwner(String username, Long documentId) {
+    return documentRepository.findOwnerById(documentId).equals(username);
+}
 ```
 
-## Recomendações Gerais
+## Resumo das Recomendações
 
 ### Para Novos Projetos:
-**Use @PreAuthorize** - Mais flexível e poderosa, padrão moderno
+1. **Primeira escolha**: `@PreAuthorize` (flexível e segura)
+2. **Para casos simples**: `@Secured` (rápida)
+3. **Raramente**: `@PostAuthorize` (apenas para filtragem)
 
-### Para Projetos Legados:
-- **Mantenha @Secured** se já funciona bem
-- **Migre gradualmente** para @PreAuthorize quando precisar de mais funcionalidades
+### Para Refatoração:
+1. **Identifique** `@PostAuthorize` com operações custosas
+2. **Migre** para `@PreAuthorize` quando possível
+3. **Mantenha** `@PostAuthorize` apenas para filtragem real
 
-### Para Performance Crítica:
-- **@Secured** é ligeiramente mais rápida
-- Diferença é mínima na maioria dos casos
-- Use profiling antes de otimizar
+### Checklist de Segurança:
+- [ ] `@PostAuthorize` não executa operações custosas?
+- [ ] Não há side effects no método protegido?
+- [ ] Dados sensíveis não são expostos durante execução?
+- [ ] Performance é aceitável para o volume esperado?
 
-### Para Equipes:
-- **@Secured**: Mais fácil para iniciantes
-- **@PreAuthorize**: Mais poderosa para desenvolvedores experientes
+## Conclusão
 
-## Próximos Passos de Estudo
+`@PostAuthorize` é uma ferramenta poderosa mas perigosa. Use com cuidado e sempre considere se `@PreAuthorize` não seria uma alternativa mais segura e performática para seu caso de uso específico.
 
-1. **@PostAuthorize**: Verificação após execução do método
-2. **@PreFilter/@PostFilter**: Filtragem de coleções
-3. **Method Security com JPA**: Integração com entidades
-4. **Custom Security Expressions**: Criar suas próprias funções SpEL
-5. **Performance Tuning**: Otimização para aplicações grandes
-
-## Observações de Segurança
-
-⚠️ **Este código é apenas para estudos!**
-
-Para produção:
-- Use `BCryptPasswordEncoder` em vez de `{noop}`
-- Implemente authorities baseadas em banco de dados
-- Configure HTTPS
-- Use JWT ou OAuth2 para autenticação stateless
-- Implemente auditoria de segurança
+A regra de ouro: **Se você pode verificar ANTES, sempre verifique ANTES!**

@@ -1,58 +1,63 @@
 package com.academy.springsecurity6full.controller;
 
+import com.academy.springsecurity6full.service.Resource;
+import com.academy.springsecurity6full.service.ResourceService;
+import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-// Controlador REST com endpoints protegidos por @Secured e uma instância de @PreAuthorize
 @RestController
 @RequestMapping("/api")
+@AllArgsConstructor
 public class SecureController {
 
-    // @Secured("ROLE_ADMIN"): Restringe o acesso a usuários com o papel ROLE_ADMIN.
-    // A anotação @Secured verifica papéis ou autoridades específicas, mas não suporta expressões SpEL.
-    // Se o usuário não tiver ROLE_ADMIN, o Spring Security lança AccessDeniedException (status 403).
+    private final ResourceService resourceService;
+
+    // @Secured("ROLE_ADMIN"): Verifica o papel ROLE_ADMIN ANTES da execução.
+    // Se a autorização falhar, o método do controlador e o serviço não são chamados.
+    // Não suporta SpEL, sendo limitado a papéis ou autoridades estáticas.
     @Secured("ROLE_ADMIN")
     @GetMapping("/admin")
     public ResponseEntity<String> adminOnly() {
-        return ResponseEntity.ok("Admin access granted");
+        // Serviço não é chamado se a autorização falhar
+        Resource resource = resourceService.fetchResource("admin_resource");
+        return ResponseEntity.ok("Admin access: " + resource.getContent());
     }
 
-    // @Secured({"ROLE_ADMIN", "ROLE_MANAGER"}): Permite acesso a usuários com ROLE_ADMIN ou ROLE_MANAGER.
-    // Similar a hasAnyRole em @PreAuthorize, mas limitado a uma lista estática de papéis.
-    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
-    @GetMapping("/manager-or-admin")
-    public ResponseEntity<String> managerOrAdmin() {
-        return ResponseEntity.ok("Manager or Admin access granted");
+    // @PostAuthorize: Verifica APÓS a execução do método e a chamada ao serviço.
+    // Checa se o usuário autenticado é o dono do recurso retornado.
+    // O serviço é executado antes da validação, mesmo que a autorização falhe.
+    @PostAuthorize("returnObject.owner == authentication.name")
+    @GetMapping("/resource/owner/{id}")
+    public Resource getResourceByOwner(@PathVariable String id) {
+        // Serviço é chamado antes da autorização
+        return resourceService.fetchResource(id);
     }
 
-    // @Secured("READ_RESOURCE"): Restringe o acesso a usuários com a autoridade READ_RESOURCE.
-    // @Secured pode verificar autoridades granulares, mas não permite lógica dinâmica.
-    @Secured("READ_RESOURCE")
-    @GetMapping("/read")
-    public ResponseEntity<String> readResource() {
-        return ResponseEntity.ok("Read access granted");
+    // @PostAuthorize com SpEL personalizado: Verifica APÓS a execução se o usuário pode acessar o recurso.
+    // Chama o método canAccessResource do serviço, que é executado após a chamada ao fetchResource.
+    @PostAuthorize("@resourceService.canAccessResource(authentication, returnObject)")
+    @GetMapping("/resource/custom/{id}")
+    public Resource getCustomResource(@PathVariable String id) {
+        // Serviço é chamado antes da autorização
+        return resourceService.fetchResource(id);
     }
 
-    // @Secured({"READ_RESOURCE", "WRITE_RESOURCE"}): Permite acesso a usuários com READ_RESOURCE ou WRITE_RESOURCE.
-    // Similar a hasAnyAuthority em @PreAuthorize, mas sem suporte a SpEL.
-    @Secured({"READ_RESOURCE", "WRITE_RESOURCE"})
-    @GetMapping("/read-or-write")
-    public ResponseEntity<String> readOrWriteResource() {
-        return ResponseEntity.ok("Read or Write access granted");
-    }
-
-    // @PreAuthorize com SpEL personalizado: Usa Spring Expression Language para chamar o método isResourceOwner.
-    // Diferente de @Secured, @PreAuthorize suporta lógica dinâmica e personalizada via SpEL.
-    // Aqui, verifica se o usuário autenticado é o dono do recurso com base no resourceId.
-    @PreAuthorize("@securityService.isResourceOwner(authentication, #resourceId)")
-    @GetMapping("/resource/{resourceId}")
-    public ResponseEntity<String> accessCustomResource(@PathVariable String resourceId) {
-        return ResponseEntity.ok("Custom resource access for " + resourceId);
+    // @PreAuthorize: Verifica ANTES da execução se o usuário é o dono do recurso.
+    // Usa isResourceOwner, que aceita uma String (resourceId), corrigindo o erro de tipo.
+    // O serviço fetchResource só é chamado se a autorização for aprovada.
+    @PreAuthorize("@resourceService.isResourceOwner(authentication, #id)")
+    @GetMapping("/resource/pre/{id}")
+    public ResponseEntity<String> accessCustomResource(@PathVariable String id) {
+        // Serviço é chamado apenas se a autorização for aprovada
+        Resource resource = resourceService.fetchResource(id);
+        return ResponseEntity.ok("Access granted: " + resource.getContent());
     }
 }
 
