@@ -3,26 +3,29 @@ package com.academy.springsecurity6full.service;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
-// Serviço que será chamado pelo controlador
+import java.util.List;
+import java.util.stream.Collectors;
+
+// Serviço para manipulação de recursos e lógica de autorização
 @Service
 public class ResourceService {
-
-    // Simula uma operação custosa que retorna um recurso
-    public Resource fetchResource(String id) {
-        // Log para demonstrar que o serviço é executado
-        System.out.println("Fetching resource for ID: " + id);
-        return new Resource(id.split("_")[0], "Resource content for " + id);
+    // Simula a recuperação de uma lista de recursos
+    public List<Resource> fetchResources(List<String> resourceIds) {
+        System.out.println("Fetching resources for IDs: " + resourceIds);
+        return resourceIds.stream()
+                .map(id -> new Resource(id.split("_")[0], "Content for " + id))
+                .collect(Collectors.toList());
     }
 
-    // Verifica se o usuário pode acessar o recurso (usado em @PostAuthorize)
-    public boolean canAccessResource(Authentication authentication, Resource resource) {
-        System.out.println("Checking access for user: " + authentication.getName());
-        return authentication.getName().equals(resource.getOwner());
-    }
-
-    // Verifica se o usuário é o dono do recurso com base no ID (usado em @PreAuthorize)
+    // Verifica se o usuário é o dono do recurso com base no resourceId (usado em @PreAuthorize)
     public boolean isResourceOwner(Authentication authentication, String resourceId) {
         System.out.println("Checking ownership for user: " + authentication.getName() + ", resourceId: " + resourceId);
         return authentication.getName().equals(resourceId.split("_")[0]);
+    }
+
+    // Verifica se o usuário pode acessar um recurso específico (usado em @PreFilter)
+    public boolean canAccessResource(Authentication authentication, Resource resource) {
+        System.out.println("Checking access for user: " + authentication.getName() + ", resource owner: " + resource.getOwner());
+        return authentication.getName().equals(resource.getOwner());
     }
 }

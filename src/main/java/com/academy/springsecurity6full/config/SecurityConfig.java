@@ -13,7 +13,7 @@ import org.springframework.security.web.SecurityFilterChain;
 // Configuração de segurança com usuários em memória
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(securedEnabled = true, prePostEnabled = true) // Habilita @Secured, @PreAuthorize e @PostAuthorize
+@EnableMethodSecurity(securedEnabled = true, prePostEnabled = true) // Habilita @Secured, @PreAuthorize e @PreFilter
 public class SecurityConfig {
 
 	// Configura a cadeia de filtros de segurança do Spring Security
@@ -24,7 +24,9 @@ public class SecurityConfig {
 						.requestMatchers("/api/**").authenticated() // Exige autenticação para todos os endpoints /api/**
 						.anyRequest().permitAll() // Permite acesso a outros endpoints sem autenticação
 				)
-				.httpBasic(); // Usa autenticação HTTP Basic para facilitar os testes
+				.httpBasic()
+				.and()
+				.csrf().disable(); // Desabilita CSRF para simplificar testes (não recomendado em produção)
 		return http.build();
 	}
 
@@ -34,15 +36,15 @@ public class SecurityConfig {
 		// Cria três usuários com diferentes papéis e permissões para testar os endpoints
 		var admin = User.withUsername("admin")
 				.password("{noop}password") // {noop} indica senha sem codificação (apenas para testes)
-				.authorities("ROLE_ADMIN","READ_RESOURCE", "WRITE_RESOURCE") // Atribui permissões granulares
+				.authorities("ROLE_ADMIN","READ_RESOURCE" )
 				.build();
-		var manager = User.withUsername("manager")
+		var manager = User.withUsername("john")
 				.password("{noop}password")
-				.roles("MANAGER") // Atribui o papel ROLE_MANAGER
+				.authorities("ROLE_USER","READ_RESOURCE" )
 				.build();
-		var user = User.withUsername("john")
+		var user = User.withUsername("other")
 				.password("{noop}password")
-				.authorities("ROLE_USER","READ_RESOURCE", "WRITE_RESOURCE") // Atribui permissões granulares
+				.roles("USER")
 				.build();
 		return new InMemoryUserDetailsManager(admin, manager, user);
 	}

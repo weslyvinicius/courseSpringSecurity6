@@ -5,13 +5,13 @@ import com.academy.springsecurity6full.service.ResourceService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreFilter;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
+// Controlador REST com endpoints protegidos
 @RestController
 @RequestMapping("/api")
 @AllArgsConstructor
@@ -20,45 +20,53 @@ public class SecureController {
     private final ResourceService resourceService;
 
     // @Secured("ROLE_ADMIN"): Verifica o papel ROLE_ADMIN ANTES da execução.
-    // Se a autorização falhar, o método do controlador e o serviço não são chamados.
-    // Não suporta SpEL, sendo limitado a papéis ou autoridades estáticas.
+    // Se a autorização falhar, o método e o serviço não são chamados.
+    // Limita-se a verificações estáticas de papéis ou autoridades, sem suporte a SpEL.
     @Secured("ROLE_ADMIN")
     @GetMapping("/admin")
     public ResponseEntity<String> adminOnly() {
-        // Serviço não é chamado se a autorização falhar
-        Resource resource = resourceService.fetchResource("admin_resource");
-        return ResponseEntity.ok("Admin access: " + resource.getContent());
+        List<Resource> resources = resourceService.fetchResources(List.of("admin_resource"));
+        return ResponseEntity.ok("Admin access: " + resources.get(0).getContent());
     }
 
-    // @PostAuthorize: Verifica APÓS a execução do método e a chamada ao serviço.
-    // Checa se o usuário autenticado é o dono do recurso retornado.
-    // O serviço é executado antes da validação, mesmo que a autorização falhe.
-    @PostAuthorize("returnObject.owner == authentication.name")
-    @GetMapping("/resource/owner/{id}")
-    public Resource getResourceByOwner(@PathVariable String id) {
-        // Serviço é chamado antes da autorização
-        return resourceService.fetchResource(id);
+    // @PreFilter: Filtra a lista de resourceIds ANTES da execução do método.
+    // Mantém apenas IDs onde o usuário autenticado é o dono (baseado em id.split("_")[0]).
+    // O serviço recebe a lista filtrada, evitando processamento de recursos não autorizados.
+    @PreFilter("filterObject.split('_')[0] == authentication.name")
+    @PostMapping("/resources/filter")
+    public ResponseEntity<List<Resource>> filterResources(@RequestBody List<String> resourceIds) {
+        List<Resource> resources = resourceService.fetchResources(resourceIds);
+        return ResponseEntity.ok(resources);
     }
 
-    // @PostAuthorize com SpEL personalizado: Verifica APÓS a execução se o usuário pode acessar o recurso.
-    // Chama o método canAccessResource do serviço, que é executado após a chamada ao fetchResource.
-    @PostAuthorize("@resourceService.canAccessResource(authentication, returnObject)")
-    @GetMapping("/resource/custom/{id}")
-    public Resource getCustomResource(@PathVariable String id) {
-        // Serviço é chamado antes da autorização
-        return resourceService.fetchResource(id);
+    // @PreFilter com SpEL personalizado: Filtra a lista de recursos ANTES da execução.
+    // Usa canAccessResource para verificar cada recurso, mantendo apenas os autorizados.
+    // filterTarget especifica o parâmetro a ser filtrado (resources).
+    @PreFilter(value = "@resourceService.canAccessResource(authentication, filterObject)", filterTarget = "resources")
+    @PostMapping("/resources/custom-filter")
+    public ResponseEntity<List<Resource>> customFilterResources(@RequestBody List<Resource> resources) {
+        // Serviço não é chamado, pois a lista já foi filtrada
+        return ResponseEntity.ok(resources);
     }
 
     // @PreAuthorize: Verifica ANTES da execução se o usuário é o dono do recurso.
-    // Usa isResourceOwner, que aceita uma String (resourceId), corrigindo o erro de tipo.
-    // O serviço fetchResource só é chamado se a autorização for aprovada.
-    @PreAuthorize("@resourceService.isResourceOwner(authentication, #id)")
-    @GetMapping("/resource/pre/{id}")
-    public ResponseEntity<String> accessCustomResource(@PathVariable String id) {
-        // Serviço é chamado apenas se a autorização for aprovada
-        Resource resource = resourceService.fetchResource(id);
-        return ResponseEntity.ok("Access granted: " + resource.getContent());
+    // Usa isResourceOwner com o parâmetro resourceId.
+    // O serviço só é chamado se a autorização for aprovada.
+    @PreAuthorize("@resourceService.isResourceOwner(authentication, #resourceId)")
+    @GetMapping("/resource/pre/{resourceId}")
+    public ResponseEntity<String> accessCustomResource(@PathVariable String resourceId) {
+        List<Resource> resources = resourceService.fetchResources(List.of(resourceId));
+        return ResponseEntity.ok("Access granted: " + resources.get(0).getContent());
+    }
+
+    // @PreAuthorize: Verifica ANTES da execução se o usuário tem a autoridade READ_RESOURCE.
+    // Usa hasAuthority para restringir o acesso com base em permissões granulares.
+    // O serviço só é chamado se a autorização for aprovada.
+    @PreAuthorize("hasAuthority('READ_RESOURCE')")
+    @GetMapping("/resource/check/{resourceId}")
+    public ResponseEntity<String> checkResource(@PathVariable String resourceId) {
+        List<Resource> resources = resourceService.fetchResources(List.of(resourceId));
+        return ResponseEntity.ok("Read access: " + resources.get(0).getContent());
     }
 }
-
 
