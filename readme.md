@@ -1,13 +1,13 @@
-# Spring Security 6 - @PreFilter vs @PreAuthorize vs @Secured
+# Spring Security 6 - @PostFilter vs @PreFilter vs @PreAuthorize vs @Secured
 
-Este projeto demonstra as diferenças entre as anotações `@PreFilter`, `@PreAuthorize` e `@Secured` do Spring Security 6 com Spring Boot 3, com foco especial no comportamento de filtragem da `@PreFilter`.
+Este projeto demonstra as diferenças entre as anotações `@PostFilter`, `@PreFilter`, `@PreAuthorize` e `@Secured` do Spring Security 6 com Spring Boot 3, com foco especial no comportamento único da `@PostFilter`.
 
 ## Estrutura do Projeto
 
 O projeto é composto por quatro classes principais:
 
 - **`SecurityConfig.java`**: Configuração de segurança com usuários em memória
-- **`SecureController.java`**: Controller REST demonstrando as três anotações
+- **`SecureController.java`**: Controller REST demonstrando as quatro anotações
 - **`ResourceService.java`**: Serviço para lógica de autorização e manipulação de recursos
 - **`Resource.java`**: Modelo de dados para demonstrar autorização baseada em propriedades do objeto
 
@@ -39,7 +39,7 @@ public class SecurityConfig {
 
 ### 2. SecureController.java
 
-Este controller demonstra as diferenças críticas entre as três anotações, especialmente o comportamento único da `@PreFilter`.
+Este controller demonstra as diferenças críticas entre as quatro anotações, especialmente o comportamento único da `@PostFilter` em comparação com `@PreFilter`.
 
 ### 3. ResourceService.java
 
@@ -49,262 +49,509 @@ Contém a lógica de autorização personalizada e logs para demonstrar **quando
 
 Modelo simples com `owner` e `content` para demonstrar autorização baseada no objeto.
 
-## Comparação Detalhada: @PreFilter vs @PreAuthorize vs @Secured
+## Comparação Detalhada: @PostFilter vs @PreFilter vs @PreAuthorize vs @Secured
 
 ### Propósito Principal - A Diferença Fundamental
 
-| Anotação | Propósito | Tipo de Verificação | Resultado |
-|----------|-----------|---------------------|-----------|
-| **@Secured** | Controle de Acesso | Role/Authority | ✅ Executa ou ❌ Bloqueia |
-| **@PreAuthorize** | Controle de Acesso | Condição Booleana | ✅ Executa ou ❌ Bloqueia |
-| **@PreFilter** | **Filtragem de Dados** | **Filtro por Item** | **🔍 Filtra Coleção** |
+| Anotação | Propósito | Momento da Verificação | Tipo de Verificação | Resultado |
+|----------|-----------|------------------------|---------------------|-----------|
+| **@Secured** | Controle de Acesso | **Antes** | Role/Authority | ✅ Executa ou ❌ Bloqueia |
+| **@PreAuthorize** | Controle de Acesso | **Antes** | Condição Booleana | ✅ Executa ou ❌ Bloqueia |
+| **@PreFilter** | **Filtragem de Entrada** | **Antes** | **Filtro por Item** | **🔍 Filtra Entrada** |
+| **@PostFilter** | **Filtragem de Saída** | **Depois** | **Filtro por Item** | **🔍 Filtra Resultado** |
 
 ### Características Técnicas
 
-| Aspecto | @Secured | @PreAuthorize | @PreFilter |
-|---------|----------|---------------|------------|
-| **Momento da Verificação** | Antes | Antes | **Antes (Filtragem)** |
-| **SpEL Support** | ❌ Não | ✅ Sim | ✅ Sim |
-| **Trabalha com Coleções** | ❌ Não | ❌ Não | ✅ **Exclusivamente** |
-| **Tipo de Controle** | Tudo ou Nada | Tudo ou Nada | **Item por Item** |
-| **Performance** | Rápida | Média | **Variável** |
-| **Uso Típico** | Roles Simples | Lógica Complexa | **Filtros de Lista** |
+| Aspecto | @Secured | @PreAuthorize | @PreFilter | @PostFilter |
+|---------|----------|---------------|------------|-------------|
+| **Momento da Verificação** | Antes | Antes | **Antes (Entrada)** | **Depois (Saída)** |
+| **SpEL Support** | ❌ Não | ✅ Sim | ✅ Sim | ✅ Sim |
+| **Trabalha com Coleções** | ❌ Não | ❌ Não | ✅ Sim | ✅ **Sim** |
+| **Tipo de Controle** | Tudo ou Nada | Tudo ou Nada | Item por Item | **Item por Item** |
+| **Performance** | Rápida | Média | Variável | **Pode ser Cara** |
+| **Impacto no Processamento** | Bloqueia | Bloqueia | **Reduz Entrada** | **Processa Tudo** |
+| **Uso Típico** | Roles Simples | Lógica Complexa | Filtros de Lista | **Filtros de Resultado** |
 
-## Como @PreFilter Funciona
+## A Diferença Crucial: @PreFilter vs @PostFilter
 
 ### Conceito Central
 
-`@PreFilter` **não bloqueia** a execução do método. Em vez disso, ela **filtra** a coleção de entrada, removendo itens que não atendem à condição especificada.
+- **@PreFilter**: Filtra a **entrada** antes do método executar → **Menor processamento**
+- **@PostFilter**: Filtra a **saída** depois do método executar → **Processamento completo**
 
-### Fluxo de Execução da @PreFilter
+### Fluxo de Execução Comparado
 
+#### @PreFilter (Filtragem de Entrada)
 ```
-1. 📥 Recebe Lista Original: [item1, item2, item3, item4, item5]
-2. 🔍 Aplica Filtro em Cada Item:
-   ├─ item1 → ✅ Passa no filtro
-   ├─ item2 → ❌ Não passa
-   ├─ item3 → ✅ Passa no filtro  
-   ├─ item4 → ❌ Não passa
-   └─ item5 → ✅ Passa no filtro
+1. 📥 Recebe Lista: [item1, item2, item3, item4, item5]
+2. 🔍 Aplica Filtro ANTES:
+   ├─ item1 → ✅ Passa (mantém)
+   ├─ item2 → ❌ Remove
+   ├─ item3 → ✅ Passa (mantém)
+   ├─ item4 → ❌ Remove
+   └─ item5 → ✅ Passa (mantém)
 3. 📤 Lista Filtrada: [item1, item3, item5]
-4. 🚀 Executa Método com Lista Filtrada
+4. 🚀 Executa Método: Processa APENAS 3 itens
+5. ✅ Retorna: Resultado dos 3 itens processados
+```
+
+#### @PostFilter (Filtragem de Saída)
+```
+1. 📥 Recebe Lista: [item1, item2, item3, item4, item5]
+2. 🚀 Executa Método: Processa TODOS os 5 itens
+3. 📤 Resultado Completo: [result1, result2, result3, result4, result5]
+4. 🔍 Aplica Filtro DEPOIS:
+   ├─ result1 → ✅ Passa (mantém)
+   ├─ result2 → ❌ Remove
+   ├─ result3 → ✅ Passa (mantém)
+   ├─ result4 → ❌ Remove
+   └─ result5 → ✅ Passa (mantém)
+5. ✅ Retorna: [result1, result3, result5]
 ```
 
 ## Exemplos Práticos dos Controllers
 
-### 1. @Secured - Controle de Acesso Simples
+### 1. @PostFilter - Filtragem de Resultado
 
 ```java
-@Secured("ROLE_ADMIN")
-@GetMapping("/admin")
-public ResponseEntity<String> adminOnly() {
-    // ✅ SÓ executa se usuário for ROLE_ADMIN
-    // ❌ Se não for: 403 Forbidden (método não executado)
-    List<Resource> resources = resourceService.fetchResources(List.of("admin_resource"));
-    return ResponseEntity.ok("Admin access: " + resources.get(0).getContent());
+@PostFilter("filterObject.owner == authentication.name")
+@GetMapping("/resources/post-filter")
+public List<Resource> getPostFilteredResources() {
+    // 🚀 SEMPRE executa fetchResources com TODOS os IDs
+    // 🔍 DEPOIS filtra o resultado baseado no owner
+    // ⚠️ Processamento completo mesmo para itens que serão removidos
+    List<String> resourceIds = List.of("john_resource1", "other_resource2", "john_resource3");
+    System.out.println("Fetching ALL resources: " + resourceIds);
+    return resourceService.fetchResources(resourceIds); // Processa todos, filtra depois
 }
 ```
 
-### 2. @PreAuthorize - Controle de Acesso Condicional
+**Comportamento:**
+- **Input**: `["john_resource1", "other_resource2", "john_resource3"]`
+- **Processamento**: Busca TODOS os 3 recursos no serviço
+- **Usuário logado**: `john`
+- **Após @PostFilter**: Remove `other_resource2`, mantém apenas os do John
+- **Output**: `[{owner: "john", content: "Content for john_resource1"}, {owner: "john", content: "Content for john_resource3"}]`
 
-```java
-@PreAuthorize("@resourceService.isResourceOwner(authentication, #resourceId)")
-@GetMapping("/resource/pre/{resourceId}")
-public ResponseEntity<String> accessCustomResource(@PathVariable String resourceId) {
-    // ✅ SÓ executa se usuário for dono do recurso
-    // ❌ Se não for: 403 Forbidden (método não executado)
-    List<Resource> resources = resourceService.fetchResources(List.of(resourceId));
-    return ResponseEntity.ok("Access granted: " + resources.get(0).getContent());
-}
-```
-
-### 3. @PreFilter - Filtragem de Lista Simples
+### 2. @PreFilter - Filtragem de Entrada (Comparação)
 
 ```java
 @PreFilter("filterObject.split('_')[0] == authentication.name")
 @PostMapping("/resources/filter")
 public ResponseEntity<List<Resource>> filterResources(@RequestBody List<String> resourceIds) {
-    // 🔍 Lista resourceIds é FILTRADA antes da execução
-    // ✅ Método SEMPRE executa (mesmo com lista vazia)
-    // Só resourceIds cujo prefixo corresponde ao username são mantidos
+    // 🔍 PRIMEIRO filtra resourceIds baseado no prefixo
+    // 🚀 DEPOIS executa fetchResources apenas com IDs filtrados
+    // ✅ Processamento otimizado - só processa itens autorizados
+    System.out.println("Filtered resourceIds: " + resourceIds);
     List<Resource> resources = resourceService.fetchResources(resourceIds);
     return ResponseEntity.ok(resources);
 }
 ```
 
-**Exemplo de funcionamento:**
-- **Input**: `["john_doc1", "admin_doc2", "john_doc3", "other_doc4"]`
+**Comportamento:**
+- **Input**: `["john_doc1", "other_doc2", "john_doc3"]`
 - **Usuário logado**: `john`
 - **Após @PreFilter**: `["john_doc1", "john_doc3"]`
-- **Resultado**: Só documentos do John são processados
+- **Processamento**: Busca APENAS os 2 recursos filtrados
+- **Output**: Recursos apenas do John
 
-### 4. @PreFilter - Filtragem com Lógica Personalizada
+## Quando Usar Cada Anotação
 
+### Use @PostFilter quando:
+
+✅ **Não pode controlar a entrada do método**
 ```java
-@PreFilter(value = "@resourceService.canAccessResource(authentication, filterObject)", 
-           filterTarget = "resources")
-@PostMapping("/resources/custom-filter")
-public ResponseEntity<List<Resource>> customFilterResources(@RequestBody List<Resource> resources) {
-    // 🔍 Lista resources é filtrada usando lógica personalizada
-    // ✅ Método sempre executa com lista filtrada
-    // Não chama resourceService.fetchResources pois os recursos já estão na lista
-    return ResponseEntity.ok(resources);
+@PostFilter("filterObject.department == authentication.principal.department")
+@GetMapping("/employees")
+public List<Employee> getAllEmployees() {
+    // Busca TODOS os funcionários, filtra por departamento depois
+    // Útil quando o método sempre deve processar tudo
+    return employeeService.findAll();
 }
 ```
 
-## Diferenças Práticas entre @PreFilter e @PreAuthorize
-
-### Cenário: Listagem de Documentos
-
-#### ❌ Problema com @PreAuthorize
+✅ **Resultado depende de processamento complexo**
 ```java
-// Não funciona bem para listas!
-@PreAuthorize("@documentService.canAccessAny(authentication, #documentIds)")
-@PostMapping("/documents")
-public List<Document> getDocuments(@RequestBody List<String> documentIds) {
-    // Problemas:
-    // 1. Como verificar permissão para CADA documento?
-    // 2. Se 1 documento for negado, TODA a operação falha
-    // 3. Tudo ou nada - não há filtragem granular
-    return documentService.findAll(documentIds);
+@PostFilter("@reportService.canViewReport(authentication, filterObject)")
+@GetMapping("/reports")
+public List<Report> generateReports() {
+    // Gera TODOS os relatórios primeiro (processamento pesado)
+    // Filtra baseado em permissões DEPOIS da geração
+    return reportService.generateAll();
 }
 ```
 
-#### ✅ Solução com @PreFilter
+✅ **Filtragem baseada em propriedades calculadas**
 ```java
-@PreFilter("@documentService.canAccess(authentication, filterObject)")
-@PostMapping("/documents") 
-public List<Document> getDocuments(@RequestBody List<String> documentIds) {
-    // Vantagens:
-    // 1. Cada documento é verificado individualmente
-    // 2. Documentos sem permissão são removidos da lista
-    // 3. Operação prossegue com documentos autorizados
-    return documentService.findAll(documentIds); // Lista já filtrada
-}
-```
-
-## Casos de Uso Reais
-
-### Use @Secured quando:
-
-✅ **Controle simples de papel/autoridade**
-```java
-@Secured("ROLE_ADMIN")
-public void deleteAllUsers() { 
-    // Só admins podem executar
-}
-```
-
-### Use @PreAuthorize quando:
-
-✅ **Verificação condicional única**
-```java
-@PreAuthorize("#userId == authentication.principal.id")
-public User updateProfile(@PathVariable Long userId, @RequestBody User user) {
-    // Só pode editar próprio perfil
-}
-```
-
-✅ **Verificação baseada em parâmetros**
-```java
-@PreAuthorize("@orderService.isOwner(authentication, #orderId)")
-public Order getOrder(@PathVariable Long orderId) {
-    // Só dono do pedido pode visualizar
+@PostFilter("filterObject.score >= authentication.principal.minScore")
+@GetMapping("/results")
+public List<TestResult> getResults() {
+    // Calcula scores de TODOS os resultados
+    // Filtra baseado no score calculado
+    return testService.calculateScores();
 }
 ```
 
 ### Use @PreFilter quando:
 
-✅ **Filtragem de listas baseada em permissões**
+✅ **Pode controlar a entrada e quer otimizar performance**
 ```java
-@PreFilter("@securityService.canViewProject(authentication, filterObject)")
-public List<Project> getProjects(@RequestBody List<String> projectIds) {
-    // Filtra projetos que o usuário pode ver
+@PreFilter("@securityService.canAccess(authentication, filterObject)")
+@PostMapping("/documents")
+public List<Document> getDocuments(@RequestBody List<String> docIds) {
+    // Filtra IDs ANTES de buscar documentos
+    // Performance otimizada - só busca documentos autorizados
+    return documentService.findByIds(docIds);
 }
 ```
 
-✅ **Processamento em lote com controle granular**
+## Implicações de Performance
+
+### Cenário: 1000 recursos, usuário tem acesso a 100
+
+| Abordagem | Processamento | Itens Processados | Eficiência | Uso de CPU |
+|-----------|---------------|-------------------|------------|------------|
+| **@PreFilter** | Mínimo | 100 | ✅ **Muito Alta** | ⚡ Baixo |
+| **@PostFilter** | Máximo | 1000 | ❌ **Baixa** | 🔥 Alto |
+| **Sem Filtro** | Máximo | 1000 | ❌ Dados não filtrados | 🔥 Alto |
+
+### Exemplo Prático de Performance
+
 ```java
-@PreFilter("filterObject.department == authentication.principal.department")
-public BatchResult processEmployees(@RequestBody List<Employee> employees) {
-    // Processa só funcionários do mesmo departamento
+// ❌ @PostFilter - Performance Ruim
+@PostFilter("filterObject.owner == authentication.name")
+@GetMapping("/heavy-computation")
+public List<ComplexResult> getComplexResults() {
+    // 1. Executa cálculo pesado para TODOS os 10.000 itens (30 segundos)
+    // 2. Filtra resultado, mantém apenas 50 itens do usuário
+    // 3. Desperdício: 99.5% do processamento foi inútil
+    return heavyComputationService.processAll(); // Muito lento!
+}
+
+// ✅ Alternativa Otimizada
+@PreAuthorize("hasAuthority('READ_RESULTS')")
+@GetMapping("/heavy-computation")
+public List<ComplexResult> getComplexResults() {
+    // 1. Busca apenas itens do usuário autenticado (0.1 segundo)
+    // 2. Executa cálculo pesado apenas para 50 itens (0.15 segundos)
+    // 3. Performance: 200x mais rápido!
+    String userId = getCurrentUserId();
+    return heavyComputationService.processForUser(userId); // Muito rápido!
 }
 ```
 
-✅ **APIs de busca com filtros de segurança**
+## Casos de Uso Reais para @PostFilter
+
+### 1. Sistema de Relatórios Dinâmicos
+
 ```java
-@PreFilter("@documentService.hasReadPermission(authentication, filterObject.id)")
-public List<Document> searchDocuments(@RequestBody List<SearchCriteria> criteria) {
-    // Busca só documentos com permissão de leitura
+@PostFilter("@reportSecurity.canViewReport(authentication, filterObject)")
+@GetMapping("/reports/dashboard")
+public List<DashboardReport> getDashboardReports() {
+    // Gera todos os relatórios do dashboard
+    // Filtra baseado em permissões complexas calculadas dinamicamente
+    List<DashboardReport> allReports = reportGenerator.generateDashboard();
+    
+    // @PostFilter remove relatórios que o usuário não pode ver
+    // Útil porque permissões dependem do conteúdo do relatório gerado
+    return allReports;
 }
 ```
 
-## Atributos Especiais da @PreFilter
-
-### 1. filterTarget (Para múltiplos parâmetros)
+### 2. Sistema de Notificações
 
 ```java
-@PreFilter(value = "filterObject.owner == authentication.name", 
-           filterTarget = "documents")
-public Result processMultipleData(@RequestBody List<Document> documents, 
-                                 @RequestBody List<String> categories) {
-    // Especifica que o filtro se aplica ao parâmetro 'documents'
-    // 'categories' não é filtrado
+@PostFilter("!filterObject.isRead() or filterObject.recipientId == authentication.principal.id")
+@GetMapping("/notifications")
+public List<Notification> getNotifications() {
+    // Busca todas as notificações relevantes
+    // Filtra para mostrar apenas:
+    // - Notificações não lidas (públicas)
+    // - Notificações do próprio usuário (lidas ou não)
+    return notificationService.getRecentNotifications();
 }
 ```
 
-### 2. filterObject (Referência ao item atual)
+### 3. Sistema de Cache com Filtragem
 
 ```java
-@PreFilter("filterObject.startsWith(authentication.name)")
-public List<String> filterPrefixes(@RequestBody List<String> items) {
-    // filterObject se refere a cada string individual da lista
+@PostFilter("@permissionService.hasReadAccess(authentication, filterObject)")
+@Cacheable("documents")
+@GetMapping("/documents/cached")
+public List<Document> getCachedDocuments() {
+    // Método busca todos os documentos do cache
+    // Cache não pode ser filtrado por usuário (compartilhado)
+    // @PostFilter aplica segurança individual por usuário
+    return documentCache.getAllDocuments();
 }
 ```
 
-### 3. Filtros Complexos com SpEL
+## Limitações e Armadilhas da @PostFilter
+
+### ❌ Limitação 1: Performance com Grandes Volumes
 
 ```java
-@PreFilter("filterObject.priority > 5 and @securityService.hasAccess(authentication, filterObject)")
-public List<Task> processHighPriorityTasks(@RequestBody List<Task> tasks) {
-    // Combina múltiplas condições
+// PERIGOSO: @PostFilter com operações custosas
+@PostFilter("@expensiveService.checkComplexPermission(authentication, filterObject)")
+@GetMapping("/expensive-data")
+public List<ExpensiveData> getExpensiveData() {
+    // Problemas:
+    // 1. Processa TODOS os dados (custoso)
+    // 2. Chama serviço caro para CADA item no resultado
+    // 3. Pode causar timeout ou consumo excessivo de recursos
+    return expensiveService.processAllData(); // Muito caro!
+}
+
+// ✅ Solução: Filtrar na fonte
+@PreAuthorize("hasAuthority('VIEW_DATA')")
+@GetMapping("/expensive-data")
+public List<ExpensiveData> getExpensiveData() {
+    String userId = getCurrentUserId();
+    return expensiveService.processDataForUser(userId); // Eficiente!
 }
 ```
 
-## Comparação de Performance
+### ❌ Limitação 2: Efeitos Colaterais Indesejados
 
-### Cenário: 1000 itens, 50% autorizados
-
-| Abordagem | Tempo de Verificação | Itens Processados | Eficiência |
-|-----------|---------------------|-------------------|------------|
-| **Sem Filtro** | 0ms | 1000 | ❌ Dados não autorizados |
-| **@PreAuthorize** | 5ms | 0 ou 1000 | ❌ Tudo ou nada |
-| **@PreFilter** | 15ms | 500 | ✅ Só dados autorizados |
-| **Filtro Manual** | 25ms | 500 | ⚠️ Código duplicado |
-
-## Limitações da @PreFilter
-
-### ❌ Não Funciona Com:
-
-1. **Parâmetros únicos (não-coleção)**
 ```java
-// ERRO: @PreFilter só funciona com coleções
-@PreFilter("filterObject == authentication.name")
-public User getUser(String username) { } // Não é uma coleção!
+// PROBLEMA: Métodos com efeitos colaterais
+@PostFilter("filterObject.owner == authentication.name")
+@PostMapping("/process-orders")
+public List<OrderResult> processOrders(@RequestBody List<Order> orders) {
+    // PERIGO: Processa TODOS os pedidos (inclusive não autorizados)
+    // Efeitos colaterais: emails enviados, estoque reduzido, etc.
+    // @PostFilter só filtra o resultado, não desfaz o processamento!
+    return orderProcessor.processAll(orders); // Processamento indevido!
+}
+
+// ✅ Solução: @PreFilter
+@PreFilter("filterObject.customerId == authentication.principal.id")
+@PostMapping("/process-orders")
+public List<OrderResult> processOrders(@RequestBody List<Order> orders) {
+    // Filtra pedidos ANTES do processamento
+    // Só processa pedidos autorizados
+    return orderProcessor.processAll(orders); // Seguro!
+}
 ```
 
-2. **Verificações de método inteiro**
+### ❌ Limitação 3: Logs e Auditoria Confusos
+
 ```java
-// Use @PreAuthorize em vez de @PreFilter
-@PreFilter("hasRole('ADMIN')") // Erro conceitual!
-public List<User> getAllUsers() { }
+@PostFilter("filterObject.visible")
+@GetMapping("/audit-logs")
+public List<AuditLog> getAuditLogs() {
+    List<AuditLog> allLogs = auditService.getAllLogs();
+    
+    // Problema: Logs mostram que TODOS os registros foram acessados
+    // Mas usuário só vê os filtrados
+    // Auditoria fica inconsistente
+    return allLogs;
+}
 ```
 
-3. **Filtragem baseada em contexto externo**
+## Combinações Avançadas
+
+### @PostFilter + @PreAuthorize
+
 ```java
-// Não tem acesso a outras variáveis do método
-@PreFilter("filterObject.date > #startDate") // #startDate não disponível
-public List<Event> getEvents(List<String> eventIds, LocalDate startDate) { }
+@PreAuthorize("hasAuthority('VIEW_REPORTS')")
+@PostFilter("@reportService.canAccessReport(authentication, filterObject)")
+@GetMapping("/secure-reports")
+public List<Report> getSecureReports() {
+    // 1. @PreAuthorize: Verifica permissão geral para ver relatórios
+    // 2. Método executa: Gera todos os relatórios
+    // 3. @PostFilter: Remove relatórios específicos sem permissão
+    return reportService.generateAllReports();
+}
+```
+
+### @PreFilter + @PostFilter (Dupla Filtragem)
+
+```java
+@PreFilter("filterObject.priority >= 5")
+@PostFilter("filterObject.owner == authentication.name")
+@PostMapping("/process-tasks")
+public List<TaskResult> processTasks(@RequestBody List<Task> tasks) {
+    // 1. @PreFilter: Remove tasks com prioridade baixa
+    // 2. Método executa: Processa apenas tasks de alta prioridade  
+    // 3. @PostFilter: Remove resultados que não pertencem ao usuário
+    // Útil quando: entrada e saída têm critérios de filtragem diferentes
+    return taskProcessor.process(tasks);
+}
+```
+
+## Alternativas Mais Eficientes
+
+### Padrão Repository com Filtragem
+
+```java
+// ❌ @PostFilter ineficiente
+@PostFilter("filterObject.department == authentication.principal.department")
+@GetMapping("/employees")
+public List<Employee> getEmployees() {
+    return employeeRepository.findAll(); // Busca TODOS
+}
+
+// ✅ Filtragem no Repository
+@GetMapping("/employees")
+public List<Employee> getEmployees() {
+    String dept = getCurrentUserDepartment();
+    return employeeRepository.findByDepartment(dept); // Busca apenas necessários
+}
+```
+
+### Padrão Service com Contexto de Segurança
+
+```java
+// ❌ @PostFilter com lógica complexa
+@PostFilter("@complexSecurityService.evaluate(authentication, filterObject)")
+@GetMapping("/complex-data")
+public List<ComplexData> getComplexData() {
+    return dataService.findAll(); // Busca tudo, filtra depois
+}
+
+// ✅ Service com contexto de segurança
+@GetMapping("/complex-data")
+public List<ComplexData> getComplexData() {
+    SecurityContext context = getCurrentSecurityContext();
+    return dataService.findWithSecurityContext(context); // Filtra na origem
+}
+```
+
+## Padrões Recomendados
+
+### ✅ Use @PostFilter para: Filtragem Baseada em Conteúdo
+
+```java
+@PostFilter("filterObject.confidentialityLevel <= authentication.principal.clearanceLevel")
+@GetMapping("/classified-documents")
+public List<Document> getClassifiedDocuments() {
+    // Conteúdo dos documentos determina nível de confidencialidade
+    // Não é possível filtrar sem carregar o documento
+    return documentService.loadAllClassifiedDocs();
+}
+```
+
+### ✅ Use @PostFilter para: Resultados Dinâmicos
+
+```java
+@PostFilter("@dynamicPermissionService.hasPermission(authentication, filterObject)")
+@GetMapping("/dynamic-content")
+public List<Content> getDynamicContent() {
+    // Permissões mudam baseadas em regras de negócio complexas
+    // Mais simples filtrar após carregar o conteúdo
+    return contentService.generateDynamicContent();
+}
+```
+
+### ❌ Evite @PostFilter para: Operações Custosas
+
+```java
+// EVITE: Processamento caro para todos os itens
+@PostFilter("filterObject.belongsToUser(authentication.name)")
+@GetMapping("/expensive-reports")
+public List<Report> getExpensiveReports() {
+    // Gera todos os relatórios (muito caro!)
+    return reportService.generateAllReports(); // ❌ Ineficiente
+}
+
+// PREFIRA: Geração seletiva
+@GetMapping("/expensive-reports")
+public List<Report> getExpensiveReports() {
+    String userId = getCurrentUserId();
+    return reportService.generateReportsForUser(userId); // ✅ Eficiente
+}
+```
+
+## Debugging e Troubleshooting
+
+### Problema 1: @PostFilter parece não funcionar
+
+```java
+// ❌ Erro comum: filterObject incorreto
+@PostFilter("filterObject.userId == authentication.name")
+public List<String> getUsernames() {
+    return List.of("john", "admin", "other"); // Strings, não objetos!
+}
+
+// ✅ Correção
+@PostFilter("filterObject == authentication.name")
+public List<String> getUsernames() {
+    return List.of("john", "admin", "other"); // filterObject é a String
+}
+```
+
+### Problema 2: Performance inesperadamente lenta
+
+```java
+// ❌ @PostFilter custosa
+@PostFilter("@heavyService.checkPermission(authentication, filterObject)")
+public List<Item> getItems() {
+    List<Item> items = itemService.findAll(); // 10.000 itens
+    // checkPermission chamado 10.000 vezes!
+    return items;
+}
+
+// ✅ Otimização: cache de permissões
+@PostFilter("@optimizedSecurityService.hasPermission(authentication, filterObject)")
+public List<Item> getItems() {
+    List<Item> items = itemService.findAll();
+    // Service usa cache interno para evitar cálculos repetidos
+    return items;
+}
+```
+
+### Logs Úteis para Debug
+
+```java
+@PostFilter("filterObject.owner == authentication.name")
+@GetMapping("/debug-resources")
+public List<Resource> getDebugResources() {
+    List<Resource> resources = resourceService.fetchResources(
+        List.of("john_doc1", "admin_doc2", "john_doc3")
+    );
+    
+    System.out.println("Before @PostFilter: " + resources.size() + " items");
+    // @PostFilter aplicado aqui
+    // Após return: System.out.println seria útil, mas não é possível
+    
+    return resources;
+}
+```
+
+Para debug de @PostFilter, use logs no serviço ou interceptors.
+
+## Métricas e Monitoramento
+
+### Métricas Importantes para @PostFilter
+
+```java
+@Component
+public class PostFilterMetrics {
+    
+    private final MeterRegistry meterRegistry;
+    
+    @EventListener
+    public void onPostFilterExecution(PostFilterEvent event) {
+        // Monitora eficiência da filtragem
+        Timer.Sample sample = Timer.start(meterRegistry);
+        
+        int totalItems = event.getTotalItems();
+        int filteredItems = event.getFilteredItems();
+        double efficiency = (double) filteredItems / totalItems;
+        
+        // Alerta se eficiência for muito baixa (< 10%)
+        if (efficiency < 0.1) {
+            log.warn("@PostFilter with low efficiency: {}% for {}", 
+                efficiency * 100, event.getMethodName());
+        }
+        
+        sample.stop(Timer.builder("postfilter.execution")
+            .tag("method", event.getMethodName())
+            .tag("efficiency", efficiency > 0.5 ? "good" : "poor")
+            .register(meterRegistry));
+    }
+}
 ```
 
 ## Testes Práticos
@@ -312,168 +559,103 @@ public List<Event> getEvents(List<String> eventIds, LocalDate startDate) { }
 ### Setup de Teste com curl:
 
 ```bash
-# 1. @Secured - Sucesso para admin
-curl -X GET -u admin:password http://localhost:8080/api/admin
-# Resultado: 200 OK
+# 1. @PostFilter - Resultado filtrado
+curl -X GET -u john:password http://localhost:8080/api/resources/post-filter
+# Logs mostram: Fetching ALL resources: [john_resource1, other_resource2, john_resource3]
+# Resultado: Apenas recursos do John [{owner: "john", content: "..."}]
 
-# 2. @Secured - Falha para john  
-curl -X GET -u john:password http://localhost:8080/api/admin
-# Resultado: 403 Forbidden
-
-# 3. @PreAuthorize - Sucesso (john acessa próprio recurso)
-curl -X GET -u john:password http://localhost:8080/api/resource/pre/john_document
-# Resultado: 200 OK
-
-# 4. @PreAuthorize - Falha (john tenta acessar recurso do admin)
-curl -X GET -u john:password http://localhost:8080/api/resource/pre/admin_document  
-# Resultado: 403 Forbidden
-
-# 5. @PreFilter - Filtragem em ação
+# 2. @PreFilter vs @PostFilter - Comparação de logs
 curl -X POST -u john:password \
   -H "Content-Type: application/json" \
-  -d '["john_doc1", "admin_doc2", "john_doc3", "other_doc4"]' \
+  -d '["john_doc1", "admin_doc2", "john_doc3"]' \
   http://localhost:8080/api/resources/filter
-# Resultado: 200 OK com apenas ["john_doc1", "john_doc3"]
+# @PreFilter - Log: Fetching resources for IDs: [john_doc1, john_doc3]
+
+curl -X GET -u john:password http://localhost:8080/api/resources/post-filter
+# @PostFilter - Log: Fetching ALL resources: [john_resource1, other_resource2, john_resource3]
 ```
 
-### Comparação de Logs:
+### Comparação de Performance nos Logs:
 
-#### @PreAuthorize (Acesso Negado):
+#### @PreFilter (Eficiente):
 ```
-Checking ownership for user: john, resourceId: admin_document
-# Método não executado - 403 Forbidden
-```
-
-#### @PreFilter (Filtragem):
-```
-# Lista original: ["john_doc1", "admin_doc2", "john_doc3", "other_doc4"]
-# Aplicando filtro para cada item...
-Fetching resources for IDs: [john_doc1, john_doc3]
-# Método executado com lista filtrada
+[DEBUG] @PreFilter applied: 3 → 2 items
+[DEBUG] Fetching resources for IDs: [john_doc1, john_doc3]
+[DEBUG] Processing 2 items
+[DEBUG] Response: 2 items returned
 ```
 
-## Combinações Poderosas
-
-### @PreFilter + @PreAuthorize
-
-```java
-@PreAuthorize("hasAuthority('READ_RESOURCE')")
-@PreFilter("@resourceService.isResourceOwner(authentication, filterObject)")
-@PostMapping("/secure-filter")
-public List<Resource> secureFilteredAccess(@RequestBody List<String> resourceIds) {
-    // 1. @PreAuthorize: Verifica se usuário tem READ_RESOURCE
-    // 2. @PreFilter: Filtra IDs que pertencem ao usuário
-    // 3. Método executa só se ambas passarem
-    return resourceService.fetchResources(resourceIds);
-}
+#### @PostFilter (Menos Eficiente):
 ```
-
-### Validação de Entrada + Filtragem
-
-```java
-@PreFilter("!filterObject.isEmpty() and filterObject.length() > 3")
-@PostMapping("/validated-filter")
-public List<Result> processValidItems(@RequestBody List<String> items) {
-    // Remove itens vazios ou muito curtos antes do processamento
-    return processItems(items);
-}
-```
-
-## Padrões Recomendados
-
-### ✅ Padrão: Filtragem + Verificação
-
-```java
-@PreAuthorize("hasAuthority('PROCESS_BATCH')")
-@PreFilter("@securityService.canProcess(authentication, filterObject)")
-public BatchResult processBatch(@RequestBody List<BatchItem> items) {
-    // Combina controle de acesso geral + filtragem granular
-    return batchService.process(items);
-}
-```
-
-### ✅ Padrão: Filtragem Condicional
-
-```java
-public List<Document> getDocuments(@RequestBody List<String> docIds, 
-                                  @RequestParam boolean onlyOwned) {
-    if (onlyOwned) {
-        return getOwnedDocuments(docIds);
-    }
-    return getAllDocuments(docIds);
-}
-
-@PreFilter("@docService.isOwner(authentication, filterObject)")
-private List<Document> getOwnedDocuments(List<String> docIds) {
-    return documentService.findAll(docIds);
-}
-```
-
-## Troubleshooting Comum
-
-### Problema 1: @PreFilter não funciona
-```java
-// ❌ Erro comum
-@PreFilter("filterObject == authentication.name")
-public String getUsername(String username) { } // NÃO é coleção!
-
-// ✅ Correção
-@PreAuthorize("#username == authentication.name")
-public String getUsername(String username) { }
-```
-
-### Problema 2: filterTarget incorreto
-```java
-// ❌ Erro: múltiplos parâmetros sem filterTarget
-@PreFilter("filterObject.owner == authentication.name")
-public Result process(List<Document> docs, List<String> categories) { }
-
-// ✅ Correção
-@PreFilter(value = "filterObject.owner == authentication.name", 
-           filterTarget = "docs")
-public Result process(List<Document> docs, List<String> categories) { }
-```
-
-### Problema 3: Performance com listas grandes
-```java
-// ❌ Problemático para listas muito grandes
-@PreFilter("@expensiveService.checkPermission(authentication, filterObject)")
-public List<Item> processLargeList(@RequestBody List<Item> items) { }
-
-// ✅ Otimização: pré-filtrar no repository
-@PreAuthorize("hasAuthority('BULK_PROCESS')")
-public List<Item> processLargeList(@RequestParam String userId) {
-    // Filtra no banco de dados em vez de na aplicação
-    return itemRepository.findByOwner(userId);
-}
+[DEBUG] Fetching ALL resources: [john_resource1, other_resource2, john_resource3]
+[DEBUG] Processing 3 items
+[DEBUG] @PostFilter applied: 3 → 2 items
+[DEBUG] Response: 2 items returned
 ```
 
 ## Resumo das Recomendações
 
+### Decisão: @PreFilter vs @PostFilter
+
+```
+📝 Checklist de Decisão:
+
+□ Posso controlar a entrada do método?
+  ✅ Sim → Considere @PreFilter
+  ❌ Não → @PostFilter pode ser necessário
+
+□ O processamento é custoso?
+  ✅ Sim → @PreFilter (otimiza performance)  
+  ❌ Não → @PostFilter é aceitável
+
+□ A filtragem depende do resultado processado?
+  ✅ Sim → @PostFilter é necessário
+  ❌ Não → @PreFilter é mais eficiente
+
+□ O método tem efeitos colaterais?
+  ✅ Sim → @PreFilter (evita efeitos indevidos)
+  ❌ Não → Ambos são seguros
+
+□ Espero filtrar > 50% dos itens?
+  ✅ Sim → @PostFilter é ineficiente
+  ❌ Não → @PostFilter é aceitável
+```
+
 ### Para Novos Projetos:
-1. **@PreAuthorize** para controle de acesso geral
-2. **@PreFilter** para filtragem de listas com segurança
-3. **@Secured** para casos muito simples de role
+
+1. **Primeira opção**: Filtragem no Repository/Service
+2. **Segunda opção**: `@PreFilter` para otimizar entrada
+3. **Terceira opção**: `@PreAuthorize` para controle simples
+4. **Última opção**: `@PostFilter` apenas quando necessário
 
 ### Para APIs REST:
-1. **GET individual**: `@PreAuthorize`
-2. **GET lista**: `@PreFilter` ou filtragem no repository
-3. **POST/PUT**: `@PreAuthorize` + validação
-4. **DELETE**: `@PreAuthorize` (operação sensível)
 
-### Checklist de Segurança:
-- [ ] `@PreFilter` é necessária ou posso filtrar no repository?
-- [ ] A lista pode ser muito grande para filtragem em memória?
-- [ ] Combinei `@PreFilter` com `@PreAuthorize` quando necessário?
-- [ ] Testei com listas vazias e casos extremos?
+| Endpoint | Recomendação | Motivo |
+|----------|--------------|--------|
+| **GET /items** | Repository filter | Melhor performance |
+| **GET /items/:id** | `@PreAuthorize` | Controle simples |
+| **POST /items/batch** | `@PreFilter` | Otimiza processamento |
+| **GET /processed-data** | `@PostFilter` | Filtragem pós-processamento |
+
+### Checklist de Performance:
+
+- [ ] Medi o impacto de performance da @PostFilter?
+- [ ] Considerou alternativas mais eficientes?
+- [ ] A filtragem é realmente necessária após o processamento?
+- [ ] Implementei cache para operações de verificação custosas?
+- [ ] Adicionei métricas para monitorar eficiência?
 
 ## Conclusão
 
-`@PreFilter` é uma ferramenta especializada para filtragem granular de coleções baseada em permissões. Use quando precisar processar listas onde diferentes itens têm diferentes níveis de acesso.
+`@PostFilter` é uma ferramenta poderosa mas que deve ser usada com cuidado. Sua principal vantagem é a capacidade de filtrar resultados baseados no conteúdo processado, mas sua principal desvantagem é o impacto na performance.
 
-**Regra de Ouro**: 
-- **Controle de Acesso** → `@PreAuthorize`
-- **Filtragem de Lista** → `@PreFilter`
-- **Papéis Simples** → `@Secured`
+**Regras de Ouro**: 
 
-A escolha correta depende do seu caso de uso específico: você quer **bloquear completamente** ou **filtrar seletivamente**?
+- **Filtragem na Origem** → Repository/Service (Melhor)
+- **Controle de Entrada** → `@PreFilter` (Bom) 
+- **Controle de Acesso** → `@PreAuthorize` (Bom)
+- **Filtragem de Resultado** → `@PostFilter` (Usar com cuidado)
+
+**Pergunta-chave**: Você precisa processar todos os dados para depois decidir o que mostrar, ou pode decidir antecipadamente o que processar?
+
+A resposta determina se `@PostFilter` é a escolha certa para seu caso de uso.

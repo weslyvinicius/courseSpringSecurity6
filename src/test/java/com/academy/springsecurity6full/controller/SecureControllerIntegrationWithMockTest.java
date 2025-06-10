@@ -84,11 +84,11 @@ class SecureControllerIntegrationWithMockTest {
     @Test
     @WithMockUser(username = "john")
     void testCustomFilterResourcesEndpointWithMatchingUser() throws Exception {
-        List<Resource> resources = List.of(
+        List<Resource> resources = new ArrayList<>(List.of(
                 new Resource("john", "Content for john_resource1"),
                 new Resource("other", "Content for other_resource2"),
                 new Resource("john", "Content for john_resource3")
-        ); // Lista modificável
+        )); // Lista modificável
         mockMvc.perform(post("/api/resources/custom-filter")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(resources)))
@@ -150,5 +150,29 @@ class SecureControllerIntegrationWithMockTest {
     void testCheckResourceEndpointAccessDenied() throws Exception {
         mockMvc.perform(get("/api/resource/check/john_resource"))
                 .andExpect(status().isForbidden());
+    }
+
+    // Testa o endpoint /api/resources/post-filter com usuário correspondente
+    // @PostFilter remove recursos não pertencentes ao usuário após a execução
+    @Test
+    @WithMockUser(username = "john")
+    void testPostFilterResourcesEndpointWithMatchingUser() throws Exception {
+        mockMvc.perform(get("/api/resources/post-filter"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2)) // Apenas john_resource1 e john_resource3
+                .andExpect(jsonPath("$[0].content").value("Content for john_resource1"))
+                .andExpect(jsonPath("$[1].content").value("Content for john_resource3"));
+    }
+
+    // Testa o endpoint /api/resources/post-filter com usuário correspondente
+    // @PostFilter remove recursos não pertencentes ao usuário, mantendo apenas other_resource2
+    @Test
+    @WithMockUser(username = "other")
+    void testPostFilterResourcesEndpointWithNoMatchingResources() throws Exception {
+        mockMvc.perform(get("/api/resources/post-filter"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1)) // Apenas other_resource2
+                .andExpect(jsonPath("$[0].owner").value("other"))
+                .andExpect(jsonPath("$[0].content").value("Content for other_resource2"));
     }
 }

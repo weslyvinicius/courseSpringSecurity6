@@ -5,6 +5,7 @@ import com.academy.springsecurity6full.service.ResourceService;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
+import org.springframework.security.access.prepost.PostFilter;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.access.prepost.PreFilter;
 import org.springframework.web.bind.annotation.*;
@@ -35,6 +36,7 @@ public class SecureController {
     @PreFilter("filterObject.split('_')[0] == authentication.name")
     @PostMapping("/resources/filter")
     public ResponseEntity<List<Resource>> filterResources(@RequestBody List<String> resourceIds) {
+        System.out.println("Filtered resourceIds: " + resourceIds); // Log para depuração
         List<Resource> resources = resourceService.fetchResources(resourceIds);
         return ResponseEntity.ok(resources);
     }
@@ -45,7 +47,7 @@ public class SecureController {
     @PreFilter(value = "@resourceService.canAccessResource(authentication, filterObject)", filterTarget = "resources")
     @PostMapping("/resources/custom-filter")
     public ResponseEntity<List<Resource>> customFilterResources(@RequestBody List<Resource> resources) {
-        // Serviço não é chamado, pois a lista já foi filtrada
+        System.out.println("Filtered resources: " + resources); // Log para depuração
         return ResponseEntity.ok(resources);
     }
 
@@ -67,6 +69,17 @@ public class SecureController {
     public ResponseEntity<String> checkResource(@PathVariable String resourceId) {
         List<Resource> resources = resourceService.fetchResources(List.of(resourceId));
         return ResponseEntity.ok("Read access: " + resources.get(0).getContent());
+    }
+
+    // @PostFilter: Filtra a lista de recursos retornada APÓS a execução do método.
+    // Usa canAccessResource para manter apenas recursos pertencentes ao usuário autenticado.
+    // O serviço é chamado com todos os IDs, mas o resultado final é filtrado.
+    @PostFilter("filterObject.owner == authentication.name")
+    @GetMapping("/resources/post-filter")
+    public List<Resource> getPostFilteredResources() {
+        List<String> resourceIds = List.of("john_resource1", "other_resource2", "john_resource3");
+        System.out.println("Fetching resources for post-filter: " + resourceIds); // Log para depuração
+        return resourceService.fetchResources(resourceIds);
     }
 }
 

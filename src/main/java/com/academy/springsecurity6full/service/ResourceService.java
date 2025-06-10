@@ -23,7 +23,7 @@ public class ResourceService {
         return authentication.getName().equals(resourceId.split("_")[0]);
     }
 
-    // Verifica se o usuário pode acessar um recurso específico (usado em @PreFilter)
+    // Verifica se o usuário pode acessar um recurso específico (usado em @PreFilter e @PostFilter)
     public boolean canAccessResource(Authentication authentication, Resource resource) {
         System.out.println("Checking access for user: " + authentication.getName() + ", resource owner: " + resource.getOwner());
         return authentication.getName().equals(resource.getOwner());
