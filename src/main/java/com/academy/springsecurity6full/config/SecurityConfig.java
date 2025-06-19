@@ -1,82 +1,60 @@
 package com.academy.springsecurity6full.config;
 
-import com.academy.springsecurity6full.repository.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.NoOpPasswordEncoder;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-/**
- * Configuração de segurança da aplicação.
- *
- * NOTA SOBRE AUTHORITIES VS ROLES:
- * No Spring Security, há um comportamento importante a ser observado:
- * - Uma role é automaticamente convertida para uma authority com prefixo "ROLE_"
- * - Quando usamos .roles("ADMIN"), o Spring internamente cria uma authority "ROLE_ADMIN"
- * - Quando definimos simultaneamente roles e authorities para o mesmo usuário,
- *   isso pode causar comportamentos inesperados porque o Spring gerencia ambos
- *   como authorities internamente.
- *
- * Por isso, esta implementação usa apenas authorities, incluindo as que representam roles
- * (prefixadas com "ROLE_"), tornando o código mais previsível e evitando conflitos.
- */
+
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true)
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-	private final UserDetailsServiceImpl userDetailsService;
+	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
 	@Bean
-	public SecurityFilterChain mySecurityFilterChain( HttpSecurity http ) throws Exception {
-
-		http.authorizeHttpRequests(configure ->
-				configure
-						// allow do acess to lougout default
-						.requestMatchers( "/logout" ).permitAll()
-						.anyRequest().authenticated() // all other requests need to be authenticated
-		);
-
-		// use http basic authentication
-		http.httpBasic();
-
-		// disable csrf
-		http.csrf().disable();
-
-		http.cors().disable();
-
-		//Enable form to login
-		http.formLogin( Customizer.withDefaults());
-
-		http.userDetailsService( userDetailsService );
-
-		// http.addFilterBefore( new myFilter, UsernamePasswordAuthenticationFilter.class  ) // informo ao sprint security um filter
-		// a ser executado antes.
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+		http
+				// Disable CSRF as JWT is stateless
+				.csrf(csrf -> csrf.disable())
+				// Disable CORS (configure as needed)
+				.cors(cors -> cors.disable())
+				// Set session management to stateless
+				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+				// Configure endpoint permissions
+				.authorizeHttpRequests(auth -> auth
+						// Public endpoints
+						.requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+						// All other endpoints require authentication
+						.anyRequest().authenticated()
+				)
+				// Add JWT filter before UsernamePasswordAuthenticationFilter
+				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();
 	}
 
-	// Usando pass code text
 	@Bean
-	PasswordEncoder passwordEncoder(){
-		return NoOpPasswordEncoder.getInstance();
+	public PasswordEncoder passwordEncoder() {
+		// Use BCrypt for secure password hashing
+		return new BCryptPasswordEncoder();
 	}
 
-
-//  Usando ByCripyt
-//	@Bean
-//	PasswordEncoder passwordEncoder(){
-//		return new BCryptPasswordEncoder();
-//	}
+	@Bean
+	public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+		// Provide AuthenticationManager for login processing
+		return authenticationConfiguration.getAuthenticationManager();
+	}
 
 }

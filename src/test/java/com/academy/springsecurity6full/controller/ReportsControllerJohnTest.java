@@ -1,63 +1,56 @@
 package com.academy.springsecurity6full.controller;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.web.servlet.MockMvc;
-
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-public class ReportsControllerJohnTest {
+public class ReportsControllerJohnTest extends AbstractJwtTest {
 
-    @Autowired
-    private MockMvc mockMvc;
 
     @Test
-    @WithMockUser(username = "john", authorities = {"ROLE_EMPLOYEE", "READ_EMPLOYEE"})
     public void testGetAllReports_Unauthorized() throws Exception {
         mockMvc.perform(get("/api/reports")
-                        .with(httpBasic("john", "j123456")))
+                        .header(AUTHORIZATION, "Bearer " + genereteJwtToken("john", "j123456")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(username = "john", authorities = {"ROLE_EMPLOYEE", "READ_EMPLOYEE"})
     public void testGetReport_Unauthorized() throws Exception {
-        mockMvc.perform(get("/api/reports/1"))
+        mockMvc.perform(get("/api/reports/1")
+                        .header(AUTHORIZATION, "Bearer " + genereteJwtToken("john", "j123456")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(username = "john", authorities = {"ROLE_EMPLOYEE", "READ_EMPLOYEE"})
     public void testCreateReport_Unauthorized() throws Exception {
-        mockMvc.perform(post("/api/reports"))
+        mockMvc.perform(post("/api/reports")
+                        .header(AUTHORIZATION, "Bearer " + genereteJwtToken("john", "j123456")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(username = "john", authorities = {"ROLE_EMPLOYEE", "READ_EMPLOYEE"})
     public void testUpdateReport_Unauthorized() throws Exception {
-        mockMvc.perform(put("/api/reports/1"))
+        mockMvc.perform(put("/api/reports/1")
+                        .header(AUTHORIZATION, "Bearer " + genereteJwtToken("john", "j123456")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(username = "john", authorities = {"ROLE_EMPLOYEE", "READ_EMPLOYEE"})
     public void testDeleteReport_Unauthorized() throws Exception {
-        mockMvc.perform(delete("/api/reports/1"))
+        mockMvc.perform(delete("/api/reports/1")
+                        .header(AUTHORIZATION, "Bearer " + genereteJwtToken("john", "j123456")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(username = "john", authorities = {"ROLE_EMPLOYEE", "READ_EMPLOYEE"})
     public void testGetCombinedAuth_Unauthorized() throws Exception {
-        mockMvc.perform(get("/api/reports/combined-auth"))
+        mockMvc.perform(get("/api/reports/combined-auth")
+                        .header(AUTHORIZATION, "Bearer " + genereteJwtToken("john", "j123456")))
                 .andExpect(status().isForbidden());
     }
 }
