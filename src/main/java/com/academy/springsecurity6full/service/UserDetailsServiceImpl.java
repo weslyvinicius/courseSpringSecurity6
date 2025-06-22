@@ -1,5 +1,6 @@
-package com.academy.springsecurity6full.repository;
+package com.academy.springsecurity6full.service;
 
+import com.academy.springsecurity6full.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
     Somente usuários na função “ADMIN” poderão acessar o terminal de serviço da Web /api/admin  .
     No entanto, GET-> /api/admin (@PreAuthorize("permitAll")) estará disponível para todos os usuários porque a anotação @PreAuthorize no nível do método substitui a anotação no nível da classe.
 * */
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasRole('ROLE_ADMIN')")
 public class AdminController {
 
 	@GetMapping

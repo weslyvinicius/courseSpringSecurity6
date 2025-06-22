@@ -1,20 +1,16 @@
 package com.academy.springsecurity6full.controller;
 
-import com.academy.springsecurity6full.domain.AuthRequest;
-import com.academy.springsecurity6full.domain.RegisterRequest;
-import com.academy.springsecurity6full.repository.UserRepository;
+import com.academy.springsecurity6full.dto.AuthRequest;
+import com.academy.springsecurity6full.dto.RegisterRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.context.WebApplicationContext;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -30,15 +26,6 @@ class AuthControllerTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private WebApplicationContext webApplicationContext;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
     private ObjectMapper objectMapper;
 
     private AuthRequest loginRequest;
@@ -49,8 +36,8 @@ class AuthControllerTest {
     @Test
     void login_success_returnsJwt() throws Exception {
         loginRequest = new AuthRequest("john", "j123456");
-        // Act: Enviar requisição POST para /api/auth/login
-        mockMvc.perform( post("/api/auth/login")
+        // Act: Enviar requisição POST para /auth/login
+        mockMvc.perform( post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
                 // Assert: Verificar status 200 e presença do token JWT
@@ -64,27 +51,26 @@ class AuthControllerTest {
         // Arrange: Modificar senha para causar falha
         loginRequest = new AuthRequest("john", "wrongpass");
 
-        // Act: Enviar requisição POST para /api/auth/login
-        mockMvc.perform( post("/api/auth/login")
+        // Act: Enviar requisição POST para /auth/login
+        mockMvc.perform( post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
                 // Assert: Verificar status 401 (Unauthorized)
-                .andExpect(status().is(HttpStatus.FORBIDDEN.value()));
+                .andExpect(status().is(HttpStatus.UNAUTHORIZED.value()));
     }
 
     @Test
     void register_newUser_success() throws Exception {
-        // Arrange: Usar um novo usuário (excluir o usuário criado no setUp)
-        userRepository.deleteAll();
-        registerRequest = new RegisterRequest("newuser", passwordEncoder.encode("testpass"));
+        registerRequest = new RegisterRequest("newuser", "testpass");
 
-        // Act: Enviar requisição POST para /api/auth/register
-        mockMvc.perform( post("/api/auth/register")
+        // Act: Enviar requisição POST para /auth/register
+        mockMvc.perform( post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON )
                         .content(objectMapper.writeValueAsString(registerRequest)))
                 // Assert: Verificar status 200 e mensagem de sucesso
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").value("User registered successfully"));
+                .andExpect(jsonPath("$.jwt").exists())
+                .andExpect(jsonPath("$.jwt").isString());
     }
 
     @Test
@@ -94,7 +80,7 @@ class AuthControllerTest {
         registerRequest = new RegisterRequest("john", "j123456");
 
         // Act: Enviar requisição POST para /api/auth/register
-        mockMvc.perform(post("/api/auth/register")
+        mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registerRequest)))
                 // Assert: Verificar status 400 e mensagem de erro

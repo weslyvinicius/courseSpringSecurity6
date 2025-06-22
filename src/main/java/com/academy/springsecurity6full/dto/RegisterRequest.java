@@ -1,4 +1,4 @@
-package com.academy.springsecurity6full.domain;
+package com.academy.springsecurity6full.dto;
 
 public record RegisterRequest(
         String username,
