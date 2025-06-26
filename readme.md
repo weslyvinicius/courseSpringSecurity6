@@ -1,329 +1,448 @@
-# Spring Security 6 com Spring Boot 3 - Utilizando Roles e Authorities com Persistência e Anotações
+# Spring Security 6 com Spring Boot 3 - Autenticação JWT com OAuth2 Resource Server
 
-Este projeto demonstra uma implementação avançada do Spring Security 6 com Spring Boot 3, focando na combinação de roles (papéis) e authorities (permissões) para um controle de acesso refinado, utilizando persistência em banco de dados e anotações `@PreAuthorize`.
+Este projeto demonstra uma implementação moderna do Spring Security 6 com Spring Boot 3, utilizando **OAuth2 Resource Server** para autenticação JWT com chaves RSA, proporcionando um controle de acesso seguro e escalável com persistência em banco de dados.
+
+## Arquitetura da Solução
+
+### Diferencial: OAuth2 Resource Server
+
+Este projeto utiliza a abordagem **OAuth2 Resource Server** do Spring Security, que oferece vantagens significativas sobre implementações manuais:
+
+- **Integração Nativa**: Utiliza os componentes oficiais do Spring Security para JWT
+- **Validação Automática**: O framework gerencia toda a validação de tokens
+- **Configuração Simplificada**: Menos código customizado, mais padrões
+- **Manutenibilidade**: Segue as melhores práticas recomendadas pelo Spring Team
+- **Performance**: Otimizações internas do framework
 
 ## Estrutura do Projeto
 
-O projeto implementa um sistema de controle de acesso completo baseado em authorities e roles com persistência:
+### Configuração e Segurança
+- `SecurityConfig.java`: Configuração OAuth2 Resource Server com JWT
+- `JwtConfig.java`: Configuração de JwtEncoder/JwtDecoder com chaves RSA
+- `AuthenticationManagerConfig.java`: Configuração do AuthenticationManager
+- `ConflictException.java`: Exceção customizada para conflitos de usuário
 
-- `SecurityConfig.java`: Configuração centralizada de segurança
-- `UserEntity.java`: Entidade JPA que implementa UserDetails para autenticação
-- `UserAuthorities.java`: Entidade JPA que implementa GrantedAuthority para autorização
+### Serviços de Autenticação
+- `AuthService.java`: Serviço de autenticação e registro de usuários
+- `JwtService.java`: Serviço para geração de tokens usando Spring Security OAuth2
+- `UserDetailsServiceImpl.java`: Serviço para carregamento de usuários do banco de dados
+
+### Controladores
+- `AuthController.java`: API REST para login, registro e refresh de tokens
+- `EmployeesController.java`: API REST para funcionários com anotações de segurança
+- `AdminController.java`: API REST para administradores usando `@PreAuthorize`
+- `ReportsController.java`: API REST para relatórios com combinação de roles e authorities
+
+### Entidades e Repositórios
+- `UserEntity.java`: Entidade JPA que implementa UserDetails
+- `UserAuthorities.java`: Entidade JPA que implementa GrantedAuthority
 - `AuthorityEnum.java`: Enumeração com todas as authorities disponíveis
 - `UserRepository.java`: Interface para persistência de usuários
-- `UserDetailsServiceImpl.java`: Serviço para carregamento de usuários do banco de dados
-- `EmployeesController.java`: API REST para funcionários com anotações de segurança
-- `AdminController.java`: API REST para administradores usando `@PreAuthorize` em nível de classe
-- `ReportsController.java`: API REST para relatórios com exemplos de combinação de roles e authorities
 
-## Principais Conceitos Demonstrados
+## Principais Conceitos Implementados
 
-### 1. Diferença entre Roles e Authorities
+### 1. OAuth2 Resource Server com JWT
 
-No Spring Security:
-
-- **Roles**: Representam um papel ou função de um usuário no sistema (EMPLOYEE, MANAGER, ADMIN). São tratadas internamente como authorities com o prefixo "ROLE_".
-- **Authorities**: Representam permissões específicas para ações (READ_EMPLOYEE, CREATE_EMPLOYEE, etc.).
-
-### 2. Implementação com Persistência de Usuários e Authorities
-
-A implementação utiliza entidades JPA para persistir usuários e suas authorities:
-
-- `UserEntity`: Implementa a interface `UserDetails` e mantém a relação com suas authorities
-- `UserAuthorities`: Implementa a interface `GrantedAuthority` e armazena as permissões
-- `AuthorityEnum`: Define todas as authorities possíveis, incluindo roles (com prefixo "ROLE_")
-
-```java
-// Entidade de usuário que implementa UserDetails
-@Entity
-@Table(name = "tb_user")
-public class UserEntity implements UserDetails {
-    @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "user_id")
-    private Long id;
-    
-    private String name;
-    private String password;
-    
-    @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
-    @JoinTable(name = "tb_users_authority",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "authority_id"))
-    private Collection<UserAuthorities> authorities = new ArrayList<>();
-    
-    // Método auxiliar para criar authorities
-    public void createAuthorities(AuthorityEnum... authorities) {
-        for (AuthorityEnum authority : authorities) {
-            UserAuthorities userAuthorities = new UserAuthorities();
-            userAuthorities.setAuthority(authority);
-            this.authorities.add(userAuthorities);
-        }
-    }
-    
-    // Implementação dos métodos de UserDetails
-    // ...
-}
-```
-
-### 3. Carregamento de Usuários do Banco de Dados
-
-O serviço `UserDetailsServiceImpl` busca usuários no banco de dados através do `UserRepository`:
-
-```java
-@Service
-@RequiredArgsConstructor
-public class UserDetailsServiceImpl implements UserDetailsService {
-    private final UserRepository userRepository;
-    
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return userRepository.findByName(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User Not Found with username:" + username));
-    }
-}
-```
-
-### 4. Configuração de Segurança Baseada em Anotações
-
-O projeto usa a anotação `@PreAuthorize` para definir regras de autorização:
+A configuração utiliza o OAuth2 Resource Server do Spring Security para validação automática de tokens:
 
 ```java
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@RequiredArgsConstructor
 public class SecurityConfig {
-    private final UserDetailsServiceImpl userDetailsService;
-    
+
     @Bean
-    public SecurityFilterChain mySecurityFilterChain(HttpSecurity http) throws Exception {
-        http.authorizeHttpRequests(configure ->
-                configure
-                        .requestMatchers("/logout").permitAll()
-                        .anyRequest().authenticated()
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(authorize -> authorize
+                .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/refresh").permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
+                .anyRequest().authenticated()
         );
-        
-        // Configuração de autenticação básica HTTP
-        http.httpBasic();
-        
-        // Desabilita CSRF e CORS
-        http.csrf().disable();
-        http.cors().disable();
-        
-        // Configuração de login por formulário
-        http.formLogin(Customizer.withDefaults());
-        
-        // Integração com o serviço de usuários
-        http.userDetailsService(userDetailsService);
-        
+
+        // OAuth2 Resource Server para validação de JWT
+        http.oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt
+                        .jwtAuthenticationConverter(jwtAuthenticationConverter())
+                )
+        );
+
+        // Política STATELESS
+        http.sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        );
+
+        http.csrf(csrf -> csrf.disable());
         return http.build();
-    }
-    
-    @Bean
-    PasswordEncoder passwordEncoder() {
-        return NoOpPasswordEncoder.getInstance();
     }
 }
 ```
 
-### 5. Controle de Acesso com `@PreAuthorize`
+### 2. Configuração de JwtEncoder e JwtDecoder
 
-O controle de acesso é definido em cada método dos controladores usando anotações `@PreAuthorize`:
+O `JwtConfig` configura os componentes oficiais do Spring Security para JWT:
+
+```java
+@Configuration
+public class JwtConfig {
+
+    @Bean
+    public JwtDecoder jwtDecoder() throws Exception {
+        RSAPublicKey publicKey = loadPublicKey();
+        return NimbusJwtDecoder.withPublicKey(publicKey).build();
+    }
+
+    @Bean
+    public JwtEncoder jwtEncoder() throws Exception {
+        RSAPublicKey publicKey = loadPublicKey();
+        RSAPrivateKey privateKey = loadPrivateKey();
+
+        JWK jwk = new RSAKey.Builder(publicKey)
+                .privateKey(privateKey)
+                .build();
+
+        JWKSource<SecurityContext> jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
+        return new NimbusJwtEncoder(jwks);
+    }
+}
+```
+
+### 3. Serviço JWT Modernizado
+
+O `JwtService` utiliza `JwtEncoder` e `JwtDecoder` oficiais:
+
+```java
+@Service
+@RequiredArgsConstructor
+public class JwtService {
+    private final JwtEncoder jwtEncoder;
+    private final JwtDecoder jwtDecoder;
+
+    public String generateAccessToken(Authentication authentication) {
+        Instant now = Instant.now();
+        List<String> authorities = authentication.getAuthorities()
+                .stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer("spring-security-jwt")
+                .issuedAt(now)
+                .claim("type", "access")
+                .expiresAt(now.plus(1, ChronoUnit.HOURS))
+                .subject(authentication.getName())
+                .claim("authorities", authorities)
+                .build();
+
+        return jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
+    }
+
+    public boolean validateToken(String token, UserDetails userDetails) {
+        try {
+            Jwt jwt = jwtDecoder.decode(token);
+            String username = jwt.getSubject();
+            return username.equals(userDetails.getUsername()) && !isTokenExpired(jwt);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}
+```
+
+### 4. Conversor de Authorities JWT
+
+Configura como as authorities do JWT são convertidas para o Spring Security:
+
+```java
+@Bean
+public JwtAuthenticationConverter jwtAuthenticationConverter() {
+    JwtGrantedAuthoritiesConverter authoritiesConverter = new JwtGrantedAuthoritiesConverter();
+    
+    // Remove prefixos automáticos
+    authoritiesConverter.setAuthorityPrefix("");
+    
+    // Define a claim que contém as authorities
+    authoritiesConverter.setAuthoritiesClaimName("authorities");
+
+    JwtAuthenticationConverter jwtConverter = new JwtAuthenticationConverter();
+    jwtConverter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
+    
+    return jwtConverter;
+}
+```
+
+### 5. Sistema de Access e Refresh Tokens
+
+O projeto implementa um sistema robusto de renovação de tokens:
+
+#### Duração dos Tokens
+- **Access Token**: 1 hora (para operações da API)
+- **Refresh Token**: 7 dias (para renovação automática)
+
+#### Fluxo de Renovação
+1. Cliente faz login e recebe ambos os tokens
+2. Utiliza access token para chamadas à API
+3. Quando access token expira, usa refresh token para obter novos tokens
+4. Sistema valida refresh token e emite novos access + refresh tokens
+
+```java
+public String generateRefreshToken(Authentication authentication) {
+    return generateToken(authentication, REFRESH_EXPIRATION_DAYS, ChronoUnit.DAYS);
+}
+
+public boolean validateRefreshToken(String token, UserDetails userDetails) {
+    try {
+        if (!isRefreshToken(token)) {
+            return false;
+        }
+        Jwt jwt = jwtDecoder.decode(token);
+        String username = jwt.getSubject();
+        return username.equals(userDetails.getUsername()) && !isTokenExpired(jwt);
+    } catch (Exception e) {
+        return false;
+    }
+}
+```
+
+### 6. AuthenticationManager Configurado
+
+Configuração explícita do AuthenticationManager para o processo de login:
+
+```java
+@Configuration
+public class AuthenticationManagerConfig {
+
+    @Bean
+    public AuthenticationManager authenticationManager() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(userDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder);
+        
+        return new ProviderManager(authProvider);
+    }
+}
+```
+
+## Vantagens da Arquitetura OAuth2 Resource Server
+
+### 1. **Conformidade com Padrões**
+- Segue especificações OAuth2 e OpenID Connect
+- Compatível com provedores de identidade externos
+- Interoperabilidade com outros sistemas
+
+### 2. **Segurança Aprimorada**
+- Validação automática de tokens pelo framework
+- Suporte nativo a diferentes algoritmos de assinatura
+- Tratamento robusto de exceções de segurança
+
+### 3. **Manutenibilidade**
+- Menos código customizado para manter
+- Atualizações automáticas de segurança via Spring
+- Configuração declarativa vs imperativa
+
+### 4. **Performance**
+- Otimizações internas do Spring Security
+- Cache automático de chaves públicas
+- Processamento eficiente de tokens
+
+### 5. **Extensibilidade**
+- Fácil integração com diferentes provedores JWT
+- Suporte a múltiplas fontes de chaves
+- Personalização via conversores e validadores
+
+## Estrutura de Resposta de Autenticação
+
+```json
+{
+  "accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "tokenType": "Bearer",
+  "expiresIn": 3600
+}
+```
+
+## Como Configurar as Chaves RSA
+
+### Geração das Chaves
+
+```bash
+# Gerar chave privada RSA
+openssl genpkey -algorithm RSA -out private.pem -pkcs8
+
+# Extrair chave pública
+openssl rsa -pubout -in private.pem -out public.pem
+```
+
+### Localização dos Arquivos
+Coloque os arquivos na pasta `src/main/resources/`:
+```
+src/
+└── main/
+    └── resources/
+        ├── private.pem
+        └── public.pem
+```
+
+## Testando a API
+
+### 1. Registro de Usuário
+
+```bash
+curl -X POST http://localhost:8080/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "john",
+    "password": "password123"
+  }'
+```
+
+### 2. Login
+
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "john",
+    "password": "password123"
+  }'
+```
+
+### 3. Renovação de Token
+
+```bash
+curl -X POST http://localhost:8080/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "eyJhbGciOiJSUzI1NiJ9..."
+  }'
+```
+
+### 4. Acesso a Recursos Protegidos
+
+```bash
+curl -X GET http://localhost:8080/api/employees/123 \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiJ9..."
+```
+
+## Controle de Acesso com @PreAuthorize
 
 ```java
 @RestController
 @RequestMapping("/api/employees")
 public class EmployeesController {
-    @GetMapping
-    @PreAuthorize("permitAll")
-    public String getAllOfEmployees() {
-        return "Read all employees";
-    }
     
     @GetMapping("/{employeeId}")
     @PreAuthorize("hasAuthority('READ_EMPLOYEE')")
     public String getEmployee(@PathVariable String employeeId) {
-        return "Read Employee: " + employeeId;
+        return "Employee: " + employeeId;
     }
     
-    // Outros métodos com suas respectivas anotações @PreAuthorize
-}
-```
-
-### 6. Anotações a Nível de Classe
-
-É possível aplicar `@PreAuthorize` em nível de classe, afetando todos os métodos, com exceções específicas:
-
-```java
-@RestController
-@RequestMapping("/api/admin")
-@PreAuthorize("hasRole('ADMIN')")
-public class AdminController {
-    @GetMapping
-    @PreAuthorize("permitAll")  // Sobrescreve a anotação em nível de classe
-    public String getAllOfEmployees() {
-        return "Read all admin employees";
+    @PostMapping
+    @PreAuthorize("hasAuthority('CREATE_EMPLOYEE')")
+    public String createEmployee() {
+        return "Employee created";
     }
-    
-    // Outros métodos que herdam a restrição @PreAuthorize("hasRole('ADMIN')")
 }
 ```
 
-### 7. Combinando Roles e Authorities
+## Sistema de Authorities
 
-O endpoint `/api/reports/combined-auth` demonstra a combinação de roles e authorities:
-
-```java
-@GetMapping("/combined-auth")
-@PreAuthorize("hasAuthority('READ_REPORT') and hasRole('MANAGER')")
-public String getReportWithCombinedAuth() {
-    return "This endpoint requires both READ_REPORT authority and MANAGER role";
-}
-```
-
-## Estrutura de Controle de Acesso
-
-### Authorities Implementadas (AuthorityEnum)
+### Authorities Implementadas
 
 **Funcionários:**
-- READ_EMPLOYEE: Leitura de dados de funcionários
-- CREATE_EMPLOYEE: Criação de funcionários
-- UPDATE_EMPLOYEE: Atualização de funcionários
-- DELETE_EMPLOYEE: Exclusão de funcionários
+- `READ_EMPLOYEE`: Leitura de dados de funcionários
+- `CREATE_EMPLOYEE`: Criação de funcionários
+- `UPDATE_EMPLOYEE`: Atualização de funcionários
+- `DELETE_EMPLOYEE`: Exclusão de funcionários
 
 **Relatórios:**
-- READ_REPORT: Leitura de relatórios
-- CREATE_REPORT: Criação de relatórios
-- UPDATE_REPORT: Atualização de relatórios
-- DELETE_REPORT: Exclusão de relatórios
+- `READ_REPORT`: Leitura de relatórios
+- `CREATE_REPORT`: Criação de relatórios
+- `UPDATE_REPORT`: Atualização de relatórios
+- `DELETE_REPORT`: Exclusão de relatórios
 
 **Roles (como authorities):**
-- ROLE_EMPLOYEE: Papel de funcionário comum
-- ROLE_MANAGER: Papel de gerente
-- ROLE_ADMIN: Papel de administrador
+- `ROLE_EMPLOYEE`: Papel de funcionário comum
+- `ROLE_MANAGER`: Papel de gerente
+- `ROLE_ADMIN`: Papel de administrador
 
-## Como Configurar o Banco de Dados
+## Matriz de Permissões
 
-Para configurar os usuários no banco de dados, você pode criar um componente de inicialização:
+**API de Funcionários (/api/employees):**
 
-```java
-@Component
-public class DatabaseInitializer implements CommandLineRunner {
-    private final UserRepository userRepository;
-    
-    public DatabaseInitializer(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
-    
-    @Override
-    public void run(String... args) {
-        // Cria usuário com role EMPLOYEE
-        UserEntity john = new UserEntity();
-        john.setName("john");
-        john.setPassword("j123456");
-        john.createAuthorities(
-            AuthorityEnum.ROLE_EMPLOYEE,
-            AuthorityEnum.READ_EMPLOYEE
-        );
-        
-        // Cria usuário com role MANAGER
-        UserEntity mary = new UserEntity();
-        mary.setName("mary");
-        mary.setPassword("m123456");
-        mary.createAuthorities(
-            AuthorityEnum.ROLE_MANAGER,
-            AuthorityEnum.READ_EMPLOYEE,
-            AuthorityEnum.CREATE_EMPLOYEE,
-            AuthorityEnum.UPDATE_EMPLOYEE,
-            AuthorityEnum.READ_REPORT
-        );
-        
-        // Cria usuário com role ADMIN
-        UserEntity susan = new UserEntity();
-        susan.setName("susan");
-        susan.setPassword("s123456");
-        susan.createAuthorities(
-            AuthorityEnum.ROLE_ADMIN,
-            AuthorityEnum.READ_EMPLOYEE,
-            AuthorityEnum.CREATE_EMPLOYEE,
-            AuthorityEnum.UPDATE_EMPLOYEE,
-            AuthorityEnum.DELETE_EMPLOYEE,
-            AuthorityEnum.READ_REPORT,
-            AuthorityEnum.CREATE_REPORT,
-            AuthorityEnum.UPDATE_REPORT,
-            AuthorityEnum.DELETE_REPORT
-        );
-        
-        // Salva usuários no banco de dados
-        userRepository.saveAll(List.of(john, mary, susan));
-    }
-}
-```
-
-## Como Testar
-
-Para testar as diferentes permissões de acesso:
-
-1. Inicie a aplicação
-2. O banco de dados (H2 Console) estará disponível em `/h2-console`
-3. Teste os endpoints com diferentes usuários:
-
-   **API de Funcionários (/api/employees):**
-   
-   | Endpoint | Método | Authority Necessária | Usuários com Acesso |
+| Endpoint | Método | Authority Necessária | Usuários com Acesso |
    |----------|--------|---------------------|---------------------|
-   | `/api/employees` | GET | nenhuma (permitAll) | Todos |
-   | `/api/employees/{id}` | GET | READ_EMPLOYEE | john, mary, susan |
-   | `/api/employees` | POST | CREATE_EMPLOYEE | mary, susan |
-   | `/api/employees/{id}` | PUT | UPDATE_EMPLOYEE | mary, susan |
-   | `/api/employees/{id}` | DELETE | DELETE_EMPLOYEE | susan |
+| `/api/employees` | GET | nenhuma (permitAll) | Todos |
+| `/api/employees/{id}` | GET | READ_EMPLOYEE | john, mary, susan |
+| `/api/employees` | POST | CREATE_EMPLOYEE | mary, susan |
+| `/api/employees/{id}` | PUT | UPDATE_EMPLOYEE | mary, susan |
+| `/api/employees/{id}` | DELETE | DELETE_EMPLOYEE | susan |
 
-   **API de Relatórios (/api/reports):**
-   
-   | Endpoint | Método | Authority Necessária | Usuários com Acesso |
+**API de Relatórios (/api/reports):**
+
+| Endpoint | Método | Authority Necessária | Usuários com Acesso |
    |----------|--------|---------------------|---------------------|
-   | `/api/reports` | GET | READ_REPORT | mary, susan |
-   | `/api/reports/{id}` | GET | READ_REPORT | mary, susan |
-   | `/api/reports` | POST | CREATE_REPORT | susan |
-   | `/api/reports/{id}` | PUT | UPDATE_REPORT | susan |
-   | `/api/reports/{id}` | DELETE | DELETE_REPORT | susan |
-   | `/api/reports/combined-auth` | GET | READ_REPORT + ROLE_MANAGER | mary |
+| `/api/reports` | GET | READ_REPORT | mary, susan |
+| `/api/reports/{id}` | GET | READ_REPORT | mary, susan |
+| `/api/reports` | POST | CREATE_REPORT | susan |
+| `/api/reports/{id}` | PUT | UPDATE_REPORT | susan |
+| `/api/reports/{id}` | DELETE | DELETE_REPORT | susan |
+| `/api/reports/combined-auth` | GET | READ_REPORT + ROLE_MANAGER | mary |
 
-   **API de Administradores (/api/admin):**
-   
-   | Endpoint | Método | Authority Necessária | Usuários com Acesso |
+**API de Administradores (/api/admin):**
+
+| Endpoint | Método | Authority Necessária | Usuários com Acesso |
    |----------|--------|---------------------|---------------------|
-   | `/api/admin` | GET | nenhuma (permitAll) | Todos |
-   | `/api/admin/**` | Todos | ROLE_ADMIN | susan |
+| `/api/admin` | GET | nenhuma (permitAll) | Todos |
+| `/api/admin/**` | Todos | ROLE_ADMIN | susan |
 
-4. Para autenticar, use:
-   - Formulário de login padrão do Spring Security
-   - Autenticação Básica HTTP com as credenciais apropriadas
 
-## Vantagens desta Abordagem
+## Considerações de Segurança
 
-1. **Persistência**: Usuários e authorities são persistidos em banco de dados.
-2. **Flexibilidade**: Fácil adicionar, remover ou modificar usuários e suas permissões.
-3. **Controle granular**: Authorities permitem definir permissões específicas para operações individuais.
-4. **Anotações declarativas**: O uso de `@PreAuthorize` torna o código mais limpo e expressivo.
-5. **Segurança por método**: Controle de acesso diretamente nos métodos que implementam as operações.
-6. **Expressões SpEL**: Permite lógica de autorização complexa usando Spring Expression Language.
-7. **Consistência interna**: O uso do enum `AuthorityEnum` garante consistência nas authorities.
+### Configuração de Produção
+- Use chaves RSA de pelo menos 2048 bits
+- Sempre utilize HTTPS em produção
+- Configure CORS adequadamente para sua aplicação
+- Implemente rate limiting nos endpoints de autenticação
 
-## Pontos Importantes
+### Armazenamento de Tokens
+- **Frontend Web**: Use httpOnly cookies para refresh tokens
+- **Mobile/SPA**: Armazene em storage seguro (não localStorage)
+- **Server-to-Server**: Use mTLS ou assinatura de requests
 
-- O uso de `NoOpPasswordEncoder` é deprecado e recomendado apenas para demonstrações. Em produção, use BCryptPasswordEncoder.
-- Em ambientes de produção:
-  - Use encoder de senha mais robusto (BCryptPasswordEncoder está comentado no código).
-  - Considere implementar mecanismos de cache para usuários e authorities.
-  - Habilite CSRF e use HTTPS.
-  - Implemente revogação de tokens e controle de sessão.
-- A anotação `@EnableMethodSecurity(prePostEnabled = true)` é necessária para habilitar o uso de `@PreAuthorize`.
+### Monitoramento
+- Registre tentativas de autenticação falhadas
+- Monitore uso de tokens expirados
+- Implemente alertas para comportamentos suspeitos
+- Considere implementar token blacklist para revogação
+
+### Rotação de Chaves
+- Implemente rotação periódica de chaves RSA
+- Mantenha múltiplas chaves para transição suave
+- Use JWK Set URL para distribuição automática de chaves
+
+## Troubleshooting
+
+### Problemas Comuns
+
+1. **Token não reconhecido**
+   - Verifique se as chaves RSA estão corretas
+   - Confirme se o formato PEM está adequado
+   - Valide se o issuer está configurado corretamente
+
+2. **Authorities não funcionando**
+   - Verifique a configuração do `JwtAuthenticationConverter`
+   - Confirme se a claim "authorities" está presente no token
+   - Valide se o prefixo de authorities está correto
+
+3. **Refresh token inválido**
+   - Confirme se o token tem o tipo "refresh"
+   - Verifique se não está expirado
+   - Valide se o usuário ainda existe e está ativo
 
 ## Recursos Adicionais
 
-- [Documentação do Spring Security sobre Method Security](https://docs.spring.io/spring-security/reference/servlet/authorization/method-security.html)
-- [Diferença entre Roles e Authorities no Spring Security](https://docs.spring.io/spring-security/site/docs/current/reference/html5/#appendix-faq-role-vs-authority)
-- [Configuração de Persistência no Spring Security](https://docs.spring.io/spring-security/reference/servlet/authentication/passwords/jdbc.html)
-- [Expressões SpEL para Autorização](https://docs.spring.io/spring-security/reference/servlet/authorization/expression-based.html)
+- [Spring Security OAuth2 Resource Server](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/index.html)
+- [JWT.io - Debugger de Tokens](https://jwt.io/)
+- [RFC 7519 - JSON Web Token](https://tools.ietf.org/html/rfc7519)
+- [Spring Security Method Security](https://docs.spring.io/spring-security/reference/servlet/authorization/method-security.html)
