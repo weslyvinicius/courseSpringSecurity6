@@ -1,11 +1,16 @@
 package com.academy.springsecurity6full.controller;
 
+import com.academy.springsecurity6full.config.ConflictException;
 import com.academy.springsecurity6full.dto.AuthRequest;
-import com.academy.springsecurity6full.dto.AuthResponse;
+import com.academy.springsecurity6full.dto.RefreshTokenRequest;
 import com.academy.springsecurity6full.dto.RegisterRequest;
+import com.academy.springsecurity6full.dto.TokenResponse;
 import com.academy.springsecurity6full.service.AuthService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -38,18 +43,20 @@ public class AuthController {
      * @return ResponseEntity com token JWT ou erro de autenticação
      */
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AuthRequest authRequest) {
-        // Autentica o usuário e gera token JWT
-        // O AuthService já retorna o token pronto
-        String token = authService.authenticate(
-                authRequest.username(),
-                authRequest.password()
-        );
-
-        // Retorna token em formato padronizado
-        return ResponseEntity.ok(new AuthResponse(token));
-
-
+    public ResponseEntity<TokenResponse> login(@RequestBody AuthRequest authRequest) {
+        try {
+            TokenResponse tokenResponse = authService.authenticate(
+                    authRequest.username(),
+                    authRequest.password()
+            );
+            return ResponseEntity.ok(tokenResponse);
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
     }
 
     /**
@@ -62,17 +69,39 @@ public class AuthController {
      * @return ResponseEntity com token JWT ou erro de registro
      */
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest registerRequest) {
-        // Registra novo usuário e gera token JWT
-        var token = authService.register(
-                registerRequest.username(),
-                registerRequest.password()
-        );
-
-        if (token.isPresent()) {
-            // Se o token foi gerado com sucesso, retorna o token
-            return ResponseEntity.ok(new AuthResponse(token.get()));
+    public ResponseEntity<TokenResponse> register(@RequestBody RegisterRequest registerRequest) {
+        try {
+            TokenResponse tokenResponse = authService.register(
+                    registerRequest.username(),
+                    registerRequest.password()
+            );
+            return ResponseEntity.status(HttpStatus.CREATED).body(tokenResponse);
+        } catch (ConflictException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
         }
-        return ResponseEntity.badRequest().body("Username already exists");
+    }
+
+    /**
+     * Endpoint para renovar access token usando refresh token.
+     *
+     * @param refreshTokenRequest Objeto contendo o refresh token
+     * @return ResponseEntity com novos tokens ou erro
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenResponse> refreshToken(@RequestBody RefreshTokenRequest refreshTokenRequest) {
+        try {
+            TokenResponse tokenResponse = authService.refreshToken(refreshTokenRequest.refreshToken());
+            return ResponseEntity.ok(tokenResponse);
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
     }
 }

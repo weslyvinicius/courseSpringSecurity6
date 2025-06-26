@@ -1,6 +1,8 @@
 package com.academy.springsecurity6full.service;
 
 
+import com.academy.springsecurity6full.config.ConflictException;
+import com.academy.springsecurity6full.dto.TokenResponse;
 import com.academy.springsecurity6full.repository.AuthorityEnum;
 import com.academy.springsecurity6full.repository.UserEntity;
 import com.academy.springsecurity6full.repository.UserRepository;
@@ -16,8 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Serviço de autenticação responsável por login e registro de usuários.
@@ -56,8 +56,8 @@ public class AuthService {
     // ============================================
     // ABORDAGEM 1: AUTHENTICATIONMANAGER (AUTOMÁTICA)
     // ============================================
-    public String authenticate(String username, String password) {
-//        try {
+    public TokenResponse authenticate(String username, String password) {
+        try {
             // O Spring Security faz TUDO automaticamente:
             // 1. Carrega usuário via UserDetailsService
             // 2. Valida senha com PasswordEncoder
@@ -68,19 +68,24 @@ public class AuthService {
                     new UsernamePasswordAuthenticationToken(username, password)
             );
 
-            return jwtService.generateToken(auth);
+            String accessToken = jwtService.generateAccessToken(auth);
+            String refreshToken = jwtService.generateRefreshToken(auth);
+            long expiresIn = jwtService.getExpirationTime();
 
-//        } catch (BadCredentialsException e) {
-//            // Exceções padronizadas do Spring Security
-//            throw new RuntimeException("Credenciais inválidas");
-//        } catch (DisabledException e) {
-//            throw new RuntimeException("Conta desabilitada");
-//        } catch (AccountExpiredException e) {
-//            throw new RuntimeException("Conta expirada");
-//        }
+            return new TokenResponse(accessToken, refreshToken, expiresIn);
+
+
+        } catch (BadCredentialsException e) {
+            // Exceções padronizadas do Spring Security
+            throw new BadCredentialsException("Credenciais inválidas");
+        } catch (DisabledException e) {
+            throw new DisabledException("Conta desabilitada");
+        } catch (Exception e) {
+            throw new RuntimeException("Conta expirada");
+        }
         // Spring Security tem muitas outras exceções específicas
 
-        // Configuração necessária:
+// Configuração necessária:
 //        @Configuration
 //        public class AuthConfig {
 //            @Bean
@@ -136,14 +141,16 @@ public class AuthService {
                     .map(GrantedAuthority::getAuthority)
                     .toList();
 
-            return jwtService.generateTokenForUser(user.getUsername(), authorities);
+            return jwtService.generateAccessTokenForUser(user.getUsername(), authorities);
 
         } catch (UsernameNotFoundException e) {
-            throw new RuntimeException("Usuário não encontrado");
+            throw new UsernameNotFoundException("Usuário não encontrado");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
-    // Não precisa configurar AuthenticationManager
+// Não precisa configurar AuthenticationManager
 
 // ============================================
 // RESUMO DAS DIFERENÇAS
@@ -170,6 +177,39 @@ Use AuthenticationManager para aproveitar toda a infraestrutura
 do Spring Security que você já está usando no resto da aplicação.
 */
 
+    /**
+     * Renova access token usando refresh token
+     */
+    public TokenResponse refreshToken(String refreshToken) throws Exception {
+        try {
+            // Extrai username do refresh token
+            String username = jwtService.getUsernameFromToken(refreshToken);
+
+            // Carrega detalhes do usuário
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+            // Valida refresh token
+            if (!jwtService.validateRefreshToken(refreshToken, userDetails)) {
+                throw new RuntimeException("Refresh token inválido ou expirado");
+            }
+
+            // Extrai authorities do usuário
+            List<String> authorities = userDetails.getAuthorities()
+                    .stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .toList();
+
+            // Gera novos tokens
+            String newAccessToken = jwtService.generateAccessTokenForUser(username, authorities);
+            String newRefreshToken = jwtService.generateRefreshTokenForUser(username, authorities);
+            long expiresIn = jwtService.getExpirationTime();
+
+            return new TokenResponse(newAccessToken, newRefreshToken, expiresIn);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao renovar token: " + e.getMessage());
+        }
+    }
 
     /**
      * Registra um novo usuário no sistema.
@@ -187,15 +227,21 @@ do Spring Security que você já está usando no resto da aplicação.
      * @throws IllegalArgumentException se usuário já existe
      */
     @Transactional
-    public Optional<String> register(String username, String password) {
+    public TokenResponse register(String username, String password) throws Exception {
         // Verifica se o usuário já existe
         if (userRepository.findByName(username).isPresent()) {
-            return Optional.empty();
+            throw new ConflictException("Username already exists");
         }
 
         // Cria nova entidade de usuário
         UserEntity newUser = new UserEntity();
         newUser.setName(username);
+        newUser.setPassword(passwordEncoder.encode(password));
+        newUser.createAuthorities(
+                AuthorityEnum.ROLE_EMPLOYEE,
+                AuthorityEnum.READ_EMPLOYEE,
+                AuthorityEnum.READ_REPORT
+        );
 
         // Criptografa a senha antes de armazenar
         newUser.setPassword(passwordEncoder.encode(password));
@@ -218,6 +264,10 @@ do Spring Security que você já está usando no resto da aplicação.
                 .toList();
 
         // Gera token JWT para acesso imediato após registro
-        return Optional.ofNullable(jwtService.generateTokenForUser(savedUser.getUsername(), authorities));
+        String accessToken = jwtService.generateAccessTokenForUser(savedUser.getUsername(), authorities);
+        String refreshToken = jwtService.generateRefreshTokenForUser(savedUser.getUsername(), authorities);
+        long expiresIn = jwtService.getExpirationTime();
+
+        return new TokenResponse(accessToken, refreshToken, expiresIn);
     }
 }

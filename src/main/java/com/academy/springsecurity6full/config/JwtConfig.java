@@ -44,6 +44,20 @@ public class JwtConfig {
     @Value("classpath:public.pem")
     private Resource publicKeyResource;
 
+
+    /**
+     * Configuração das chaves RSA para JWT.
+     * As chaves devem estar no formato PEM e localizadas no classpath.
+     * Exemplo de configuração no application.properties:
+     *
+     *
+     * # Para o Resource Server (validação do token)
+     * spring.security.oauth2.resourceserver.jwt.public-key-location=classpath:keys/public-key.pem
+     *
+     * # Se você quiser usar a chave privada no JwtService (opcional)
+     * app.jwt.private-key-location=classpath:keys/private-key.pem
+     */
+
     /**
      * Bean responsável por decodificar/validar tokens JWT recebidos.
      * Utiliza a chave pública RSA para verificar a assinatura do token.

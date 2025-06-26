@@ -47,6 +47,7 @@ public class SecurityConfig {
 		http.authorizeHttpRequests(authorize -> authorize
 				// Endpoints públicos - não requerem autenticação
 				.requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+				.requestMatchers(HttpMethod.POST, "/auth/refresh").permitAll()
 				.requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
 				// Todos os outros endpoints requerem autenticação
 				.anyRequest().authenticated()

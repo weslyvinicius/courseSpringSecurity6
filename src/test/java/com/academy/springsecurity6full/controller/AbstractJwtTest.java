@@ -28,7 +28,7 @@ public class AbstractJwtTest {
 
         // Extrair token da resposta
         String response = result.andReturn().getResponse().getContentAsString();
-        return objectMapper.readTree(response).get("jwt").asText();
+        return objectMapper.readTree(response).get("accessToken").asText();
     }
 
 
