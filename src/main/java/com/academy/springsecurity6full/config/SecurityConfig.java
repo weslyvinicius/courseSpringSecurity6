@@ -35,7 +35,8 @@ public class SecurityConfig {
 				// Configure endpoint permissions
 				.authorizeHttpRequests(auth -> auth
 						// Public endpoints
-						.requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+						.requestMatchers("/api/auth/login", "/api/auth/register",
+								"/api/auth/refresh", "/api/auth/validate").permitAll()
 						// All other endpoints require authentication
 						.anyRequest().authenticated()
 				)

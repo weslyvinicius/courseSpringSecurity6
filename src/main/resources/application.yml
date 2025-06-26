@@ -1,6 +1,4 @@
 
-
-
 # Configuração de logging para Spring Security
 logging.level.org.springframework.security: DEBUG
 logging.level.org.springframework.security.access: TRACE

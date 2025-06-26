@@ -1,70 +1,110 @@
 package com.academy.springsecurity6full.controller;
 
-import com.academy.springsecurity6full.config.JwtUtil;
-import com.academy.springsecurity6full.domain.AuthRequest;
-import com.academy.springsecurity6full.domain.AuthResponse;
-import com.academy.springsecurity6full.domain.RegisterRequest;
-import com.academy.springsecurity6full.repository.AuthorityEnum;
-import com.academy.springsecurity6full.repository.UserEntity;
-import com.academy.springsecurity6full.repository.UserRepository;
+import com.academy.springsecurity6full.config.ConflictException;
+import com.academy.springsecurity6full.domain.*;
+import com.academy.springsecurity6full.service.AuthService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 /**
- * REST controller for authentication and user registration.
- *
- * - /api/auth/login: Authenticates user and returns JWT.
- * - /api/auth/register: Registers a new user with default ROLE_EMPLOYEE.
+ * Controller REST para operações de autenticação.
+ * <p>
+ * Responsabilidades:
+ * - Expor endpoints para login e registro
+ * - Validar dados de entrada
+ * - Retornar respostas padronizadas
+ * - Tratar exceções de autenticação
+ * <p>
+ * Endpoints:
+ * - POST /auth/login: Autentica usuário existente
+ * - POST /auth/register: Registra novo usuário
  */
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthenticationManager authenticationManager;
-    private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final AuthService authService;
 
+    /**
+     * Endpoint para autenticação de usuário.
+     * <p>
+     * Recebe credenciais (username/password) e retorna token JWT
+     * para acesso aos recursos protegidos da aplicação.
+     *
+     * @param AuthRequest Dados de login (username e password)
+     * @return ResponseEntity com token JWT ou erro de autenticação
+     */
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest authRequest) {
-        // Authenticate user
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(authRequest.username(), authRequest.password())
-        );
-
-        // Generate JWT
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        String jwt = jwtUtil.generateToken(userDetails);
-
-        return ResponseEntity.ok(new AuthResponse(jwt));
-    }
-
-    @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody RegisterRequest registerRequest) {
-        // Check if username exists
-        if (userRepository.findByName(registerRequest.username()).isPresent()) {
-            return ResponseEntity.badRequest().body("Username already exists");
+    public ResponseEntity<TokenResponse> login(@RequestBody AuthRequest authRequest) {
+        try {
+            TokenResponse tokenResponse = authService.authenticate(
+                    authRequest.username(),
+                    authRequest.password()
+            );
+            return ResponseEntity.ok(tokenResponse);
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
         }
-
-        // Create new user
-        UserEntity user = new UserEntity();
-        user.setName(registerRequest.username());
-        user.setPassword(passwordEncoder.encode(registerRequest.password()));
-        user.createAuthorities(AuthorityEnum.ROLE_EMPLOYEE); // Default role
-
-        // Save user
-        userRepository.save(user);
-
-        return ResponseEntity.ok("User registered successfully");
     }
+
+    /**
+     * Endpoint para registro de novo usuário.
+     * <p>
+     * Cria novo usuário no sistema com authorities padrão
+     * e retorna token JWT para acesso imediato.
+     *
+     * @param registerRequest Dados de registro (username e password)
+     * @return ResponseEntity com token JWT ou erro de registro
+     */
+    @PostMapping("/register")
+    public ResponseEntity<TokenResponse> register(@RequestBody RegisterRequest registerRequest) {
+        try {
+            TokenResponse tokenResponse = authService.register(
+                    registerRequest.username(),
+                    registerRequest.password()
+            );
+            return ResponseEntity.status(HttpStatus.CREATED).body(tokenResponse);
+        } catch (ConflictException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+
+    /**
+     * Endpoint para renovar access token usando refresh token.
+     *
+     * @param refreshTokenRequest Objeto contendo o refresh token
+     * @return ResponseEntity com novos tokens ou erro
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenResponse> refreshToken(@RequestBody RefreshTokenRequest refreshTokenRequest) {
+        try {
+            TokenResponse tokenResponse = authService.refreshToken(refreshTokenRequest.refreshToken());
+            return ResponseEntity.ok(tokenResponse);
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+
 }

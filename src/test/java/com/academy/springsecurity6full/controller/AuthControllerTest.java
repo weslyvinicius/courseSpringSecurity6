@@ -1,6 +1,7 @@
 package com.academy.springsecurity6full.controller;
 
 import com.academy.springsecurity6full.domain.AuthRequest;
+import com.academy.springsecurity6full.domain.RefreshTokenRequest;
 import com.academy.springsecurity6full.domain.RegisterRequest;
 import com.academy.springsecurity6full.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,11 +15,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.context.WebApplicationContext;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 
 @SpringBootTest
@@ -47,59 +48,112 @@ class AuthControllerTest {
 
 
     @Test
-    void login_success_returnsJwt() throws Exception {
+    void login_success_returnsTokenResponse() throws Exception {
+        // Arrange
         loginRequest = new AuthRequest("john", "j123456");
-        // Act: Enviar requisição POST para /api/auth/login
-        mockMvc.perform( post("/api/auth/login")
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
-                // Assert: Verificar status 200 e presença do token JWT
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.jwt").exists())
-                .andExpect(jsonPath("$.jwt").isString());
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.accessToken").exists())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").exists())
+                .andExpect(jsonPath("$.refreshToken").isString())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.expiresIn").exists())
+                .andExpect(jsonPath("$.expiresIn").isNumber());
     }
 
     @Test
     void login_invalidCredentials_returnsUnauthorized() throws Exception {
-        // Arrange: Modificar senha para causar falha
-        loginRequest = new AuthRequest("john", "wrongpass");
+        // Arrange
+        loginRequest = new AuthRequest("john", "wrongpassword");
 
-        // Act: Enviar requisição POST para /api/auth/login
-        mockMvc.perform( post("/api/auth/login")
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
-                // Assert: Verificar status 401 (Unauthorized)
-                .andExpect(status().is(HttpStatus.FORBIDDEN.value()));
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void login_nonExistentUser_returnsUnauthorized() throws Exception {
+        // Arrange
+        loginRequest = new AuthRequest("nonexistent", "password");
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     void register_newUser_success() throws Exception {
-        // Arrange: Usar um novo usuário (excluir o usuário criado no setUp)
-        userRepository.deleteAll();
-        registerRequest = new RegisterRequest("newuser", passwordEncoder.encode("testpass"));
+        // Arrange
+        registerRequest = new RegisterRequest("newuser", "testpass123");
 
-        // Act: Enviar requisição POST para /api/auth/register
-        mockMvc.perform( post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON )
-                        .content(objectMapper.writeValueAsString(registerRequest)))
-                // Assert: Verificar status 200 e mensagem de sucesso
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").value("User registered successfully"));
-    }
-
-    @Test
-    void register_existingUser_returnsBadRequest() throws Exception {
-        // Arrange: Usar o mesmo usuário criado no setUp
-        // (john já existe no banco)
-        registerRequest = new RegisterRequest("john", "j123456");
-
-        // Act: Enviar requisição POST para /api/auth/register
+        // Act & Assert
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registerRequest)))
-                // Assert: Verificar status 400 e mensagem de erro
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$").value("Username already exists"));
+                .andExpect(status().isCreated())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.accessToken").exists())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").exists())
+                .andExpect(jsonPath("$.refreshToken").isString())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.expiresIn").exists())
+                .andExpect(jsonPath("$.expiresIn").isNumber());
+
+    }
+
+    @Test
+    void register_existingUser_returnsConflict() throws Exception {
+        // Arrange - Usar usuário que já existe (john)
+        registerRequest = new RegisterRequest("john", "newpassword");
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registerRequest)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void refreshToken_validToken_returnsNewTokens() throws Exception {
+        // Arrange - Primeiro fazer login para obter refresh token
+        loginRequest = new AuthRequest("john", "j123456");
+
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        // Extrair refresh token da resposta do login
+        String loginResponse = loginResult.getResponse().getContentAsString();
+        String refreshToken = objectMapper.readTree(loginResponse).get("refreshToken").asText();
+
+        var refreshTokenRequest = new RefreshTokenRequest(refreshToken);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(refreshTokenRequest)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.accessToken").exists())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").exists())
+                .andExpect(jsonPath("$.refreshToken").isString())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.expiresIn").exists())
+                .andExpect(jsonPath("$.expiresIn").isNumber());
     }
 
 }

@@ -1,5 +1,6 @@
 package com.academy.springsecurity6full.config;
 
+import com.academy.springsecurity6full.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,7 +26,7 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtUtil jwtUtil;
+    private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
 
     @Override
@@ -39,13 +40,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Check for Bearer token
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             jwt = authHeader.substring(7);
-            username = jwtUtil.getUsernameFromToken(jwt);
+            try {
+                username = jwtService.getUsernameFromToken(jwt);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
 
         // Validate token and set authentication
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            if (jwtUtil.validateToken(jwt, userDetails)) {
+            if (jwtService.validateToken(jwt, userDetails)) {
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
