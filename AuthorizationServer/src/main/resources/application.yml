@@ -1,0 +1,17 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: oauth2-authorization-server-demo
+
+logging:
+  level:
+    # Log para sua aplicação
+    org.springframework.web: DEBUG
+    # Configuração de logging para Spring Security
+    org.springframework.security: DEBUG
+    org.springframework.security.access: TRACE
+    # Log detalhado para autorização
+    org.springframework.security.web.FilterChainProxy: DEBUG
+    org.springframework.security.web.access.expression: TRACE

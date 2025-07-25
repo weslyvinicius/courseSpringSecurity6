@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth2 - Resultado</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #4a5568;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .success {
+            background: #f0fff4;
+            border: 2px solid #38a169;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .error {
+            background: #fed7d7;
+            border: 2px solid #e53e3e;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .code-section {
+            background: #1a202c;
+            color: #68d391;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-section h3 {
+            color: #fbb6ce;
+            margin-top: 0;
+        }
+
+        .code-content {
+            background: #2d3748;
+            padding: 15px;
+            border-radius: 5px;
+            word-break: break-all;
+            border-left: 4px solid #68d391;
+        }
+
+        .json-viewer {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+
+        .back-button {
+            display: inline-block;
+            background: linear-gradient(45deg, #4299e1, #3182ce);
+            color: white;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.3);
+        }
+
+        .info-badge {
+            display: inline-block;
+            background: #bee3f8;
+            color: #2b6cb0;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            margin: 5px;
+        }
+
+        .highlight {
+            background: #yellow;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 th:if="${success}">✅ Fluxo OAuth2 Completado!</h1>
+    <h1 th:if="${error}">❌ Erro no Fluxo OAuth2</h1>
+    <h1 th:if="${!success and !error}">⚠️ Resultado do Fluxo OAuth2</h1>
+
+    <!-- Exibir erro, se houver -->
+    <div th:if="${error}" class="error">
+        <h3>🚫 Erro:</h3>
+        <p th:text="${error}"></p>
+    </div>
+
+    <!-- Exibir Authorization Code (sempre, mesmo com erro na troca por token) -->
+    <div th:if="${authorizationCode}" class="code-section">
+        <h3>🎯 Authorization Code Recebido:</h3>
+        <div class="code-content">
+            <strong>Código:</strong> <span th:text="${authorizationCode}"></span>
+        </div>
+        <p style="color: #a0aec0; font-size: 0.9em; margin-top: 10px;">
+            ✨ Este é o <span class="highlight">Authorization Code</span> que foi gerado pelo seu Authorization Server!<br>
+            Ele é usado para trocar por tokens de acesso.
+        </p>
+    </div>
+
+    <!-- Exibir State (se presente) -->
+    <div th:if="${state}" class="info-badge">
+        <strong>State:</strong> <span th:text="${state}"></span>
+    </div>
+
+    <!-- Exibir resposta do token (se sucesso) -->
+    <div th:if="${tokenResponse}" class="success">
+        <h3>🎉 Tokens Obtidos com Sucesso!</h3>
+
+        <div class="code-section">
+            <h3>📝 Resposta Completa do /oauth2/token:</h3>
+            <div class="json-viewer">
+                <div th:each="entry : ${tokenResponse}">
+                    <strong th:text="${entry.key}">key</strong>: <span th:text="${entry.value}">value</span><br/>
+                </div>
+            </div>
+        </div>
+
+        <!-- Extrair informações importantes dos tokens -->
+        <div th:if="${tokenResponse.access_token}">
+            <div class="code-section">
+                <h3>🔑 Access Token:</h3>
+                <div class="code-content" th:text="${tokenResponse.access_token}"></div>
+            </div>
+        </div>
+
+        <div th:if="${tokenResponse.id_token}">
+            <div class="code-section">
+                <h3>🆔 ID Token (OpenID Connect):</h3>
+                <div class="code-content" th:text="${tokenResponse.id_token}"></div>
+            </div>
+        </div>
+
+        <div th:if="${tokenResponse.refresh_token}">
+            <div class="code-section">
+                <h3>🔄 Refresh Token:</h3>
+                <div class="code-content" th:text="${tokenResponse.refresh_token}"></div>
+            </div>
+        </div>
+
+        <div>
+                <span class="info-badge" th:if="${tokenResponse.token_type}">
+                    <strong>Tipo:</strong> <span th:text="${tokenResponse.token_type}"></span>
+                </span>
+            <span class="info-badge" th:if="${tokenResponse.expires_in}">
+                    <strong>Expira em:</strong> <span th:text="${tokenResponse.expires_in}"></span> segundos
+                </span>
+            <span class="info-badge" th:if="${tokenResponse.scope}">
+                    <strong>Escopo:</strong> <span th:text="${tokenResponse.scope}"></span>
+                </span>
+        </div>
+    </div>
+
+    <!-- Informações sobre o fluxo -->
+    <div style="background: #edf2f7; padding: 20px; border-radius: 8px; margin-top: 20px;">
+        <h4>📚 O que aconteceu:</h4>
+        <ol>
+            <li><strong>Authorization Request:</strong> Você foi redirecionado para o Authorization Server</li>
+            <li><strong>User Authentication:</strong> Fez login com suas credenciais</li>
+            <li><strong>Authorization Grant:</strong> O servidor gerou um Authorization Code</li>
+            <li th:if="${tokenResponse}"><strong>Token Request:</strong> O código foi trocado por tokens com sucesso</li>
+            <li th:if="${!tokenResponse and authorizationCode}"><strong>Token Request:</strong> Tentativa de trocar código por tokens (com erro)</li>
+            <li th:if="${tokenResponse}"><strong>Access Granted:</strong> Agora você tem tokens para acessar recursos!</li>
+        </ol>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="/" class="back-button">🏠 Voltar ao Início</a>
+    </div>
+</div>
+</body>
+</html>

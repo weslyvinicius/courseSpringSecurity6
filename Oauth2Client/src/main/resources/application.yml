@@ -1,0 +1,14 @@
+server:
+  port: 8081  # Cliente roda em porta diferente do Authorization Server
+
+spring:
+  application:
+    name: oauth2-client-demo
+
+  thymeleaf:
+    cache: false  # Para desenvolvimento
+
+logging:
+  level:
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
