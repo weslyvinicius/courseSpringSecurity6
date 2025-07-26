@@ -1,5 +1,6 @@
 package com.academy.springsecurity6full.config;
 
+import com.academy.springsecurity6full.repository.CustomRegisteredClientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,25 +9,15 @@ import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.core.AuthorizationGrantType;
-import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
-import org.springframework.security.oauth2.core.oidc.OidcScopes;
-import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
-import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 
-import java.util.UUID;
 
 /**
  * Classe de configuração de segurança para OAuth2 Authorization Server
@@ -39,6 +30,9 @@ import java.util.UUID;
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
+	private final CustomRegisteredClientRepository customRegisteredClientRepository;
+
 
 	/**
 	 * PRIMEIRO FILTRO DE SEGURANÇA - AUTHORIZATION SERVER
@@ -94,10 +88,18 @@ public class SecurityConfig {
 	@Order(2)
 	public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http)
 			throws Exception {
-		     http
+		http
 				.authorizeHttpRequests((authorize) ->
 						authorize
+								// URLs públicas para cadastro
+								.requestMatchers("/api/registered-clients/**").permitAll()
+								.requestMatchers("/api/users/**").permitAll()
+								// Qualquer outra requisição precisa de autenticação
 								.anyRequest().authenticated()
+				)
+				// Disable CSRF for API endpoints
+				.csrf(csrf -> csrf
+						.ignoringRequestMatchers("/api/**")
 				)
 				// Form login handles the redirect to the login page from the
 				// authorization server filter chain
@@ -105,30 +107,6 @@ public class SecurityConfig {
 
 
 		return http.build();
-	}
-
-
-	/**
-	 * SERVIÇO DE DETALHES DO USUÁRIO
-	 *
-	 * Define como o Spring Security vai buscar informações dos usuários.
-	 * Neste caso, está usando um usuário em memória (apenas para desenvolvimento/testes).
-	 *
-	 * Em produção, normalmente você implementaria um UserDetailsService customizado
-	 * que busca usuários de um banco de dados.
-	 */
-	@Bean
-	public UserDetailsService userDetailsService() {
-
-		// Cria um usuário em memória para testes
-		var u1 = User.withUsername("user")           // Nome de usuário: "user"
-				.password("password")                 // Senha: "password" (sem criptografia!)
-				.authorities("read")                  // Permissão: "read"
-				.build();
-
-		// Retorna um gerenciador de usuários em memória
-		// Em produção, você usaria JdbcUserDetailsManager ou uma implementação customizada
-		return new InMemoryUserDetailsManager(u1);
 	}
 
 	/**
@@ -149,50 +127,6 @@ public class SecurityConfig {
 
 		// Para produção, use algo como:
 		// return new BCryptPasswordEncoder();
-	}
-
-	/**
-	 * REPOSITÓRIO DE CLIENTES REGISTRADOS
-	 *
-	 * Define quais aplicações (clientes) podem usar este Authorization Server.
-	 * Cada cliente precisa ser registrado com suas configurações específicas.
-	 */
-	@Bean
-	public RegisteredClientRepository registeredClientRepository() {
-
-		// Registra um cliente OAuth2
-		RegisteredClient r1 = RegisteredClient.withId(UUID.randomUUID().toString()) // ID único interno
-
-				// CREDENCIAIS DO CLIENTE
-				.clientId("my-client")                    // ID público do cliente
-				.clientSecret("secret")                // Senha do cliente (deve ser criptografada em produção!)
-
-				// ESCOPOS PERMITIDOS
-				// Escopos definem que tipo de acesso o cliente pode solicitar
-				.scope(OidcScopes.OPENID)             // Escopo obrigatório para OpenID Connect
-				.scope(OidcScopes.PROFILE)            // Permite acessar informações do perfil do usuário
-
-				// URI DE REDIRECIONAMENTO
-				// Após a autenticação, o usuário será redirecionado para esta URL
-				// DEVE ser exatamente igual ao registrado (questão de segurança)
-				.redirectUri("http://localhost:8081/callback")
-				.postLogoutRedirectUri("http://127.0.0.1:8080/")
-
-				// MÉTODO DE AUTENTICAÇÃO DO CLIENTE
-				// Como o cliente vai se autenticar no Authorization Server
-				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC) // Basic Auth
-
-				// TIPOS DE GRANT PERMITIDOS
-				// Authorization Code: fluxo mais seguro, recomendado para aplicações web
-				.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-				// Refresh Token: permite renovar tokens sem nova autenticação
-				.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-
-				.build();
-
-		// Retorna um repositório em memória com o cliente registrado
-		// Em produção, use JdbcRegisteredClientRepository para persistir no banco
-		return new InMemoryRegisteredClientRepository(r1);
 	}
 
 	/**
