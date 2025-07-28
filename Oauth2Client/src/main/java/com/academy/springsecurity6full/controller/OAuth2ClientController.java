@@ -1,9 +1,8 @@
 package com.academy.springsecurity6full.controller;
 
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.LinkedMultiValueMap;
@@ -15,90 +14,218 @@ import org.springframework.web.client.RestTemplate;
 import java.util.Base64;
 import java.util.Map;
 
+
+@Slf4j
 @Controller
 public class OAuth2ClientController {
 
-    // Configurações do cliente - devem coincidir com seu Authorization Server
-    private static final String CLIENT_ID = "my-client";
-    private static final String CLIENT_SECRET = "secret";
-    private static final String AUTHORIZATION_SERVER_URL = "http://localhost:8080";
-    private static final String REDIRECT_URI = "http://localhost:8081/callback";
+    @Value("${oauth2.authorization-server.base-url:http://localhost:8080}")
+    private String authorizationServerUrl;
+
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    // Configurações dos clientes (normalmente viriam de properties/database)
+    private final Map<String, ClientConfig> clientConfigs = Map.of(
+            "web-app", new ClientConfig("web-app", "web-secret", "http://localhost:8081/callback"),
+            "mobile-app", new ClientConfig("mobile-app", "mobile-secret", "com.academy.app://callback"),
+            "dashboard-app", new ClientConfig("dashboard-app", "dashboard-secret", "http://localhost:8082/callback"),
+            "reports-app", new ClientConfig("reports-app", "reports-secret", "http://localhost:8083/callback")
+    );
 
     @GetMapping("/")
-    public String home() {
+    public String index() {
         return "index";
     }
 
     @GetMapping("/login")
-    public String login() {
-        // Construir URL de autorização
-        String authorizationUrl = AUTHORIZATION_SERVER_URL + "/oauth2/authorize" +
-                "?response_type=code" +
-                "&client_id=" + CLIENT_ID +
-                "&redirect_uri=" + REDIRECT_URI +
-                "&scope=openid profile" +
-                "&state=xyz123"; // Estado para prevenir CSRF
+    public String login(@RequestParam(required = false) String client_id,
+                        @RequestParam(required = false) String scope) {
 
-        return "redirect:" + authorizationUrl;
+        // Se não especificou cliente, redireciona para seleção
+        if (client_id == null) {
+            return "redirect:/";
+        }
+
+        ClientConfig config = clientConfigs.get(client_id);
+        if (config == null) {
+            log.error("Cliente não encontrado: {}", client_id);
+            return "redirect:/?error=invalid_client";
+        }
+
+        // Gerar state para segurança
+        String state = generateRandomState();
+
+        // Construir URL de autorização
+        String authUrl = String.format(
+                "%s/oauth2/authorize?client_id=%s&response_type=code&scope=%s&redirect_uri=%s&state=%s",
+                authorizationServerUrl,
+                client_id,
+                scope != null ? scope : "openid profile",
+                config.getRedirectUri(),
+                state
+        );
+
+        log.info("Redirecionando para: {}", authUrl);
+        return "redirect:" + authUrl;
     }
 
     @GetMapping("/callback")
     public String callback(@RequestParam(required = false) String code,
-                           @RequestParam(required = false) String error,
                            @RequestParam(required = false) String state,
+                           @RequestParam(required = false) String error,
+                           @RequestParam(required = false) String error_description,
+                           @RequestParam(required = false) String client_id,
                            Model model) {
 
+        log.info("Callback recebido - Code: {}, State: {}, Error: {}",
+                code != null ? "***" : null, state, error);
+
+        // Verificar se houve erro na autorização
         if (error != null) {
-            model.addAttribute("error", "Erro na autorização: " + error);
+            model.addAttribute("error", "Erro na autorização: " + error +
+                    (error_description != null ? " - " + error_description : ""));
             return "result";
         }
 
+        // Verificar se recebeu o código
         if (code == null) {
-            model.addAttribute("error", "Código de autorização não recebido");
+            model.addAttribute("error", "Authorization Code não recebido");
             return "result";
         }
 
-        // AQUI VOCÊ TEM O AUTHORIZATION CODE!
+        // Adicionar informações básicas ao model
         model.addAttribute("authorizationCode", code);
         model.addAttribute("state", state);
 
-        // Agora vamos trocar o código por um token
+        // Determinar qual cliente usar (pode vir de parâmetro ou session)
+        String clientId = determineClientId(client_id);
+        ClientConfig config = clientConfigs.get(clientId);
+
+        if (config == null) {
+            model.addAttribute("error", "Configuração do cliente não encontrada: " + clientId);
+            return "result";
+        }
+
         try {
-            Map<String, Object> tokenResponse = exchangeCodeForToken(code);
-            model.addAttribute("tokenResponse", tokenResponse);
-            model.addAttribute("success", true);
+            // Trocar authorization code por tokens
+            Map<String, Object> tokenResponse = exchangeCodeForTokens(code, config);
+
+            if (tokenResponse != null) {
+                model.addAttribute("tokenResponse", tokenResponse);
+                model.addAttribute("success", true);
+
+                // Log para debug
+                log.info("Tokens obtidos com sucesso para cliente: {}", clientId);
+                if (tokenResponse.containsKey("access_token")) {
+                    log.info("Access Token recebido (primeiros 50 chars): {}",
+                            tokenResponse.get("access_token").toString().substring(0,
+                                    Math.min(50, tokenResponse.get("access_token").toString().length())));
+                }
+
+            } else {
+                model.addAttribute("error", "Falha ao obter tokens do Authorization Server");
+            }
+
         } catch (Exception e) {
-            model.addAttribute("error", "Erro ao trocar código por token: " + e.getMessage());
-            model.addAttribute("authorizationCode", code); // Manter o código visível mesmo com erro
+            log.error("Erro ao trocar código por tokens", e);
+            model.addAttribute("error", "Erro interno: " + e.getMessage());
         }
 
         return "result";
     }
 
-    private Map<String, Object> exchangeCodeForToken(String code) {
-        RestTemplate restTemplate = new RestTemplate();
+    private Map<String, Object> exchangeCodeForTokens(String code, ClientConfig config) {
+        try {
+            // Preparar headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        // Cabeçalhos
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            // Autenticação Basic com credenciais do cliente
+            String credentials = config.getClientId() + ":" + config.getClientSecret();
+            String encodedCredentials = Base64.getEncoder().encodeToString(credentials.getBytes());
+            headers.set("Authorization", "Basic " + encodedCredentials);
 
-        // Autenticação básica (CLIENT_ID:CLIENT_SECRET em Base64)
-        String auth = CLIENT_ID + ":" + CLIENT_SECRET;
-        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
-        headers.set("Authorization", "Basic " + encodedAuth);
+            // Preparar body da requisição
+            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+            body.add("grant_type", "authorization_code");
+            body.add("code", code);
+            body.add("redirect_uri", config.getRedirectUri());
 
-        // Corpo da requisição
-        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-        body.add("grant_type", "authorization_code");
-        body.add("code", code);
-        body.add("redirect_uri", REDIRECT_URI);
+            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
-        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+            // Fazer requisição para o endpoint de token
+            String tokenUrl = authorizationServerUrl + "/oauth2/token";
+            log.info("Fazendo requisição para: {}", tokenUrl);
+            log.info("Client ID: {}", config.getClientId());
+            log.info("Redirect URI: {}", config.getRedirectUri());
 
-        // Fazer a requisição
-        String tokenUrl = AUTHORIZATION_SERVER_URL + "/oauth2/token";
-        ResponseEntity<Map> response = restTemplate.postForEntity(tokenUrl, request, Map.class);
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    tokenUrl,
+                    HttpMethod.POST,
+                    request,
+                    Map.class
+            );
 
-        return response.getBody();
+            if (response.getStatusCode() == HttpStatus.OK) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> tokenData = response.getBody();
+                log.info("Resposta do token server: {}", tokenData.keySet());
+                return tokenData;
+            } else {
+                log.error("Erro na resposta do token server: {}", response.getStatusCode());
+                return null;
+            }
+
+        } catch (Exception e) {
+            log.error("Exceção ao trocar código por tokens", e);
+            throw new RuntimeException("Falha na troca de código por tokens", e);
+        }
+    }
+
+    private String determineClientId(String paramClientId) {
+        // Lógica para determinar o cliente
+        // Pode usar parâmetro, session, ou padrão
+        if (paramClientId != null && clientConfigs.containsKey(paramClientId)) {
+            return paramClientId;
+        }
+
+        // Padrão
+        return "web-app";
+    }
+
+    private String generateRandomState() {
+        return java.util.UUID.randomUUID().toString();
+    }
+
+    // Classe interna para configuração do cliente
+    private static class ClientConfig {
+        private final String clientId;
+        private final String clientSecret;
+        private final String redirectUri;
+
+        public ClientConfig(String clientId, String clientSecret, String redirectUri) {
+            this.clientId = clientId;
+            this.clientSecret = clientSecret;
+            this.redirectUri = redirectUri;
+        }
+
+        public String getClientId() { return clientId; }
+        public String getClientSecret() { return clientSecret; }
+        public String getRedirectUri() { return redirectUri; }
+    }
+
+    // Endpoint adicional para testar diferentes clientes
+    @GetMapping("/test-client")
+    public String testClient(@RequestParam String clientId,
+                             @RequestParam String scopes,
+                             Model model) {
+
+        if (!clientConfigs.containsKey(clientId)) {
+            model.addAttribute("error", "Cliente não encontrado: " + clientId);
+            return "result";
+        }
+
+        // Redirecionar para o fluxo OAuth2
+        return "redirect:/login?client_id=" + clientId + "&scope=" + scopes;
     }
 }

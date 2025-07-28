@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OAuth2 - Resultado</title>
+    <title>OAuth2 - Resultado Detalhado</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -44,6 +44,20 @@
             margin: 20px 0;
         }
 
+        .section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            border-left: 4px solid #4299e1;
+        }
+
+        .section h3 {
+            color: #2d3748;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
         .code-section {
             background: #1a202c;
             color: #68d391;
@@ -66,6 +80,47 @@
             border-radius: 5px;
             word-break: break-all;
             border-left: 4px solid #68d391;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .jwt-section {
+            background: #e6fffa;
+            border: 2px solid #38b2ac;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+
+        .jwt-parts {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .jwt-part {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .jwt-part h4 {
+            margin-top: 0;
+            color: #2d3748;
+        }
+
+        .jwt-header {
+            border-left: 4px solid #f56565;
+        }
+
+        .jwt-payload {
+            border-left: 4px solid #48bb78;
+        }
+
+        .jwt-signature {
+            border-left: 4px solid #ed8936;
         }
 
         .json-viewer {
@@ -75,6 +130,26 @@
             padding: 15px;
             margin: 10px 0;
             overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .json-key {
+            color: #2b6cb0;
+            font-weight: bold;
+        }
+
+        .json-string {
+            color: #38a169;
+        }
+
+        .json-number {
+            color: #d69e2e;
+        }
+
+        .json-boolean {
+            color: #9f7aea;
         }
 
         .back-button {
@@ -86,7 +161,7 @@
             border-radius: 25px;
             font-weight: bold;
             transition: all 0.3s ease;
-            margin-top: 20px;
+            margin: 10px;
         }
 
         .back-button:hover {
@@ -105,10 +180,96 @@
         }
 
         .highlight {
-            background: #yellow;
+            background: #fbd38d;
             padding: 2px 5px;
             border-radius: 3px;
             font-weight: bold;
+        }
+
+        .copy-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+
+        .copy-button:hover {
+            background: #3182ce;
+        }
+
+        .authorities-analysis {
+            background: #fff5f5;
+            border: 2px solid #fc8181;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .comparison-table th {
+            background: #f7fafc;
+            font-weight: bold;
+        }
+
+        .granted {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .denied {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            border-bottom-color: #4299e1;
+            color: #4299e1;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .jwt-parts {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -124,87 +285,466 @@
         <p th:text="${error}"></p>
     </div>
 
-    <!-- Exibir Authorization Code (sempre, mesmo com erro na troca por token) -->
-    <div th:if="${authorizationCode}" class="code-section">
+    <!-- Exibir Authorization Code -->
+    <div th:if="${authorizationCode}" class="section">
         <h3>🎯 Authorization Code Recebido:</h3>
         <div class="code-content">
             <strong>Código:</strong> <span th:text="${authorizationCode}"></span>
         </div>
-        <p style="color: #a0aec0; font-size: 0.9em; margin-top: 10px;">
-            ✨ Este é o <span class="highlight">Authorization Code</span> que foi gerado pelo seu Authorization Server!<br>
-            Ele é usado para trocar por tokens de acesso.
+        <p style="color: #718096; font-size: 0.9em; margin-top: 10px;">
+            ✨ Este é o <span class="highlight">Authorization Code</span> que foi gerado pelo Authorization Server!
         </p>
     </div>
 
-    <!-- Exibir State (se presente) -->
-    <div th:if="${state}" class="info-badge">
-        <strong>State:</strong> <span th:text="${state}"></span>
+    <!-- Exibir Authorization Code da URL se não vier do backend -->
+    <div id="url-auth-code-section" class="section" style="display: none;">
+        <h3>🎯 Authorization Code Recebido (da URL):</h3>
+        <div class="code-content">
+            <strong>Código:</strong> <span id="url-auth-code"></span>
+        </div>
+        <p style="color: #718096; font-size: 0.9em; margin-top: 10px;">
+            ✨ Este é o <span class="highlight">Authorization Code</span> que foi capturado da URL!
+        </p>
+    </div>
+
+    <!-- Exibir State -->
+    <div th:if="${state}" style="text-align: center; margin: 15px 0;">
+        <span class="info-badge">
+            <strong>State:</strong> <span th:text="${state}"></span>
+        </span>
     </div>
 
     <!-- Exibir resposta do token (se sucesso) -->
-    <div th:if="${tokenResponse}" class="success">
-        <h3>🎉 Tokens Obtidos com Sucesso!</h3>
+    <div th:if="${tokenResponse != null}">
+        <div class="success">
+            <h3>🎉 Tokens Obtidos com Sucesso!</h3>
 
-        <div class="code-section">
-            <h3>📝 Resposta Completa do /oauth2/token:</h3>
-            <div class="json-viewer">
-                <div th:each="entry : ${tokenResponse}">
-                    <strong th:text="${entry.key}">key</strong>: <span th:text="${entry.value}">value</span><br/>
+            <div style="text-align: center; margin: 15px 0;">
+                <span class="info-badge" th:if="${tokenResponse.token_type}">
+                    <strong>Tipo:</strong> <span th:text="${tokenResponse.token_type}"></span>
+                </span>
+                <span class="info-badge" th:if="${tokenResponse.expires_in}">
+                    <strong>Expira em:</strong> <span th:text="${tokenResponse.expires_in}"></span> segundos
+                </span>
+                <span class="info-badge" th:if="${tokenResponse.scope}">
+                    <strong>Escopo:</strong> <span th:text="${tokenResponse.scope}"></span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Análise de JWT Tokens -->
+        <div class="jwt-section" th:if="${tokenResponse.access_token}">
+            <h3>🔍 Análise Detalhada dos Tokens JWT</h3>
+
+            <div class="tabs">
+                <div class="tab active" onclick="showTab('access-token-tab')">🔑 Access Token</div>
+                <div class="tab" th:if="${tokenResponse.id_token}" onclick="showTab('id-token-tab')">🆔 ID Token</div>
+                <div class="tab" onclick="showTab('raw-response-tab')">📝 Resposta Completa</div>
+            </div>
+
+            <!-- Access Token Analysis -->
+            <div id="access-token-tab" class="tab-content active">
+                <h4>🔑 Access Token Decodificado</h4>
+                <div class="jwt-parts">
+                    <div class="jwt-part jwt-header">
+                        <h4>Header</h4>
+                        <div id="access-token-header" class="json-viewer">
+                            Carregando...
+                        </div>
+                    </div>
+                    <div class="jwt-part jwt-payload">
+                        <h4>Payload (Claims)</h4>
+                        <div id="access-token-payload" class="json-viewer">
+                            Carregando...
+                        </div>
+                    </div>
+                    <div class="jwt-part jwt-signature">
+                        <h4>Signature</h4>
+                        <div id="access-token-signature" class="json-viewer">
+                            Carregando...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Token Completo para Copiar -->
+                <div class="code-section">
+                    <h4>Token Completo:</h4>
+                    <button class="copy-button" onclick="copyToClipboard('access-token-full')">📋 Copiar</button>
+                    <div class="code-content" id="access-token-full" th:text="${tokenResponse.access_token}"></div>
+                </div>
+            </div>
+
+            <!-- ID Token Analysis -->
+            <div id="id-token-tab" class="tab-content" th:if="${tokenResponse.id_token}">
+                <h4>🆔 ID Token Decodificado (OpenID Connect)</h4>
+                <div class="jwt-parts">
+                    <div class="jwt-part jwt-header">
+                        <h4>Header</h4>
+                        <div id="id-token-header" class="json-viewer">
+                            Carregando...
+                        </div>
+                    </div>
+                    <div class="jwt-part jwt-payload">
+                        <h4>Payload (Claims)</h4>
+                        <div id="id-token-payload" class="json-viewer">
+                            Carregando...
+                        </div>
+                    </div>
+                    <div class="jwt-part jwt-signature">
+                        <h4>Signature</h4>
+                        <div id="id-token-signature" class="json-viewer">
+                            Carregando...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-section">
+                    <h4>ID Token Completo:</h4>
+                    <button class="copy-button" onclick="copyToClipboard('id-token-full')">📋 Copiar</button>
+                    <div class="code-content" id="id-token-full" th:text="${tokenResponse.id_token}"></div>
+                </div>
+            </div>
+
+            <!-- Raw Response -->
+            <div id="raw-response-tab" class="tab-content">
+                <h4>📝 Resposta Completa do /oauth2/token</h4>
+                <div class="json-viewer">
+                    <div th:each="entry : ${tokenResponse}">
+                        <span class="json-key" th:text="${entry.key}">key</span>:
+                        <span class="json-string" th:text="${entry.value}">value</span><br/>
+                    </div>
+                </div>
+
+                <div th:if="${tokenResponse.refresh_token}" class="code-section">
+                    <h4>🔄 Refresh Token:</h4>
+                    <button class="copy-button" onclick="copyToClipboard('refresh-token')">📋 Copiar</button>
+                    <div class="code-content" id="refresh-token" th:text="${tokenResponse.refresh_token}"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Extrair informações importantes dos tokens -->
-        <div th:if="${tokenResponse.access_token}">
-            <div class="code-section">
-                <h3>🔑 Access Token:</h3>
-                <div class="code-content" th:text="${tokenResponse.access_token}"></div>
+        <!-- Análise de Authorities vs Scopes -->
+        <div class="authorities-analysis">
+            <h3>🔐 Análise de Permissões: Escopos vs Authorities</h3>
+            <p>Comparação entre o que foi solicitado pelo cliente e o que o usuário realmente possui:</p>
+
+            <div id="permissions-analysis">
+                <!-- Será preenchido via JavaScript -->
+            </div>
+
+            <div style="background: #fffaf0; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                <h4>💡 Como Interpretar:</h4>
+                <ul>
+                    <li><strong class="granted">Verde:</strong> Usuário possui a authority necessária para o escopo</li>
+                    <li><strong class="denied">Vermelho:</strong> Usuário não possui a authority necessária</li>
+                    <li><strong>Resultado:</strong> Apenas as authorities "verdes" aparecem no token final</li>
+                </ul>
             </div>
         </div>
+    </div>
 
-        <div th:if="${tokenResponse.id_token}">
-            <div class="code-section">
-                <h3>🆔 ID Token (OpenID Connect):</h3>
-                <div class="code-content" th:text="${tokenResponse.id_token}"></div>
-            </div>
-        </div>
-
-        <div th:if="${tokenResponse.refresh_token}">
-            <div class="code-section">
-                <h3>🔄 Refresh Token:</h3>
-                <div class="code-content" th:text="${tokenResponse.refresh_token}"></div>
-            </div>
-        </div>
-
-        <div>
-                <span class="info-badge" th:if="${tokenResponse.token_type}">
-                    <strong>Tipo:</strong> <span th:text="${tokenResponse.token_type}"></span>
-                </span>
-            <span class="info-badge" th:if="${tokenResponse.expires_in}">
-                    <strong>Expira em:</strong> <span th:text="${tokenResponse.expires_in}"></span> segundos
-                </span>
-            <span class="info-badge" th:if="${tokenResponse.scope}">
-                    <strong>Escopo:</strong> <span th:text="${tokenResponse.scope}"></span>
-                </span>
+    <!-- Seção para quando só temos o authorization code (sem tokens ainda) -->
+    <div th:if="${tokenResponse == null and authorizationCode}">
+        <div class="section">
+            <h3>⚠️ Próximo Passo: Trocar Authorization Code por Tokens</h3>
+            <p>O Authorization Code foi recebido com sucesso, mas ainda não foi trocado por tokens de acesso.</p>
+            <p>Para completar o fluxo OAuth2, é necessário fazer uma requisição POST para o endpoint <code>/oauth2/token</code>.</p>
         </div>
     </div>
 
     <!-- Informações sobre o fluxo -->
-    <div style="background: #edf2f7; padding: 20px; border-radius: 8px; margin-top: 20px;">
-        <h4>📚 O que aconteceu:</h4>
+    <div class="section">
+        <h3>📚 Fluxo OAuth2 Authorization Code</h3>
         <ol>
-            <li><strong>Authorization Request:</strong> Você foi redirecionado para o Authorization Server</li>
-            <li><strong>User Authentication:</strong> Fez login com suas credenciais</li>
-            <li><strong>Authorization Grant:</strong> O servidor gerou um Authorization Code</li>
-            <li th:if="${tokenResponse}"><strong>Token Request:</strong> O código foi trocado por tokens com sucesso</li>
-            <li th:if="${!tokenResponse and authorizationCode}"><strong>Token Request:</strong> Tentativa de trocar código por tokens (com erro)</li>
-            <li th:if="${tokenResponse}"><strong>Access Granted:</strong> Agora você tem tokens para acessar recursos!</li>
+            <li><strong>Authorization Request:</strong> Cliente redireciona usuário para Authorization Server</li>
+            <li><strong>User Authentication:</strong> Usuário faz login com suas credenciais</li>
+            <li><strong>Consent Screen:</strong> Usuário autoriza os escopos solicitados</li>
+            <li><strong>Authorization Grant:</strong> Servidor gera Authorization Code</li>
+            <li th:if="${tokenResponse != null}"><strong>Token Request:</strong> Código trocado por tokens com sucesso ✅</li>
+            <li th:if="${tokenResponse == null and authorizationCode}"><strong>Token Request:</strong> Erro na troca do código por tokens ❌</li>
+            <li th:if="${tokenResponse != null}"><strong>Access Granted:</strong> Cliente pode usar tokens para acessar recursos protegidos</li>
         </ol>
     </div>
 
+    <!-- Botões de Ação -->
     <div style="text-align: center; margin-top: 30px;">
         <a href="/" class="back-button">🏠 Voltar ao Início</a>
+        <button onclick="testWithJwtIo()" class="back-button" style="background: linear-gradient(45deg, #38a169, #2f855a);">
+            🔍 Verificar em JWT.io
+        </button>
     </div>
 </div>
+
+<script>
+    let accessToken = null;
+    let idToken = null;
+
+    // Inicialização quando a página carrega
+    document.addEventListener('DOMContentLoaded', function() {
+        // Capturar authorization code da URL se não vier do backend
+        checkUrlForAuthCode();
+
+        // Pegar tokens se existirem
+        const accessTokenElement = document.getElementById('access-token-full');
+        const idTokenElement = document.getElementById('id-token-full');
+
+        if (accessTokenElement && accessTokenElement.textContent.trim()) {
+            accessToken = accessTokenElement.textContent.trim();
+            decodeJWT(accessToken, 'access-token');
+        }
+
+        if (idTokenElement && idTokenElement.textContent.trim()) {
+            idToken = idTokenElement.textContent.trim();
+            decodeJWT(idToken, 'id-token');
+        }
+
+        // Análise de permissões
+        analyzePermissions();
+
+        // Preencher código no exemplo se disponível
+        fillCodeInExample();
+    });
+
+    function fillCodeInExample() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const codeFromUrl = urlParams.get('code');
+        const codeElement = document.getElementById('code-for-example');
+
+        if (codeElement && codeFromUrl) {
+            codeElement.textContent = codeFromUrl;
+        }
+    }
+
+    function checkUrlForAuthCode() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const codeFromUrl = urlParams.get('code');
+        const stateFromUrl = urlParams.get('state');
+
+        if (codeFromUrl) {
+            // Verificar se já não existe um authorization code do backend
+            const backendAuthCode = document.querySelector('[th\\:text="${authorizationCode}"]');
+
+            if (!backendAuthCode || !backendAuthCode.textContent.trim()) {
+                // Mostrar a seção com o código da URL
+                const urlSection = document.getElementById('url-auth-code-section');
+                const urlCodeElement = document.getElementById('url-auth-code');
+
+                if (urlSection && urlCodeElement) {
+                    urlCodeElement.textContent = codeFromUrl;
+                    urlSection.style.display = 'block';
+                }
+
+                // Adicionar o state também se existir
+                if (stateFromUrl) {
+                    const stateContainer = document.querySelector('.info-badge');
+                    if (!stateContainer || !stateContainer.textContent.includes('State:')) {
+                        const newStateContainer = document.createElement('div');
+                        newStateContainer.style.textAlign = 'center';
+                        newStateContainer.style.margin = '15px 0';
+                        newStateContainer.innerHTML = `
+                            <span class="info-badge">
+                                <strong>State (da URL):</strong> <span>${stateFromUrl}</span>
+                            </span>
+                        `;
+                        urlSection.appendChild(newStateContainer);
+                    }
+                }
+            }
+        }
+    }
+
+    function showTab(tabId) {
+        // Esconder todas as abas
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+
+        // Remover active de todas as tabs
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        // Mostrar aba selecionada
+        document.getElementById(tabId).classList.add('active');
+
+        // Marcar tab como ativa
+        event.target.classList.add('active');
+    }
+
+    function decodeJWT(token, prefix) {
+        if (!token) return;
+
+        try {
+            const parts = token.split('.');
+            if (parts.length !== 3) {
+                throw new Error('Token JWT inválido');
+            }
+
+            // Decodificar Header
+            const header = JSON.parse(atob(parts[0]));
+            const headerElement = document.getElementById(prefix + '-header');
+            if (headerElement) {
+                headerElement.innerHTML = formatJSON(header);
+            }
+
+            // Decodificar Payload
+            const payload = JSON.parse(atob(parts[1]));
+            const payloadElement = document.getElementById(prefix + '-payload');
+            if (payloadElement) {
+                payloadElement.innerHTML = formatJSON(payload);
+            }
+
+            // Signature (não decodificamos, apenas mostramos)
+            const signatureElement = document.getElementById(prefix + '-signature');
+            if (signatureElement) {
+                signatureElement.innerHTML =
+                    '<div style="color: #ed8936;">Signature (Base64URL encoded)</div><div style="font-size: 0.8em; color: #718096; word-break: break-all;">' + parts[2] + '</div>';
+            }
+
+        } catch (error) {
+            console.error('Erro ao decodificar JWT:', error);
+
+            // Mostrar erro nos elementos correspondentes
+            const headerElement = document.getElementById(prefix + '-header');
+            const payloadElement = document.getElementById(prefix + '-payload');
+            const signatureElement = document.getElementById(prefix + '-signature');
+
+            const errorMsg = '<div style="color: #e53e3e;">❌ Erro ao decodificar: ' + error.message + '</div>';
+
+            if (headerElement) headerElement.innerHTML = errorMsg;
+            if (payloadElement) payloadElement.innerHTML = errorMsg;
+            if (signatureElement) signatureElement.innerHTML = errorMsg;
+        }
+    }
+
+    function formatJSON(obj) {
+        return JSON.stringify(obj, null, 2)
+            .replace(/(".*?")\s*:/g, '<span class="json-key">$1</span>:')
+            .replace(/:\s*(".*?")/g, ': <span class="json-string">$1</span>')
+            .replace(/:\s*(\d+)/g, ': <span class="json-number">$1</span>')
+            .replace(/:\s*(true|false)/g, ': <span class="json-boolean">$1</span>');
+    }
+
+    function copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+
+        const text = element.textContent;
+
+        navigator.clipboard.writeText(text).then(function() {
+            // Feedback visual
+            const button = element.parentElement.querySelector('.copy-button');
+            if (button) {
+                const originalText = button.textContent;
+                button.textContent = '✅ Copiado!';
+                button.style.background = '#38a169';
+
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '#4299e1';
+                }, 2000);
+            }
+        }).catch(function(err) {
+            console.error('Erro ao copiar: ', err);
+            alert('Erro ao copiar para a área de transferência');
+        });
+    }
+
+    function testWithJwtIo() {
+        if (accessToken) {
+            const jwtIoUrl = 'https://jwt.io/#debugger-io?token=' + encodeURIComponent(accessToken);
+            window.open(jwtIoUrl, '_blank');
+        } else {
+            alert('Nenhum token disponível para verificar!');
+        }
+    }
+
+    function analyzePermissions() {
+        const analysisDiv = document.getElementById('permissions-analysis');
+        if (!analysisDiv) return;
+
+        if (accessToken) {
+            try {
+                const payload = JSON.parse(atob(accessToken.split('.')[1]));
+
+                let analysisHTML = '<table class="comparison-table">';
+                analysisHTML += '<thead><tr><th>Escopo Solicitado</th><th>Authority Necessária</th><th>Usuário Possui?</th><th>No Token?</th></tr></thead>';
+                analysisHTML += '<tbody>';
+
+                // Mapeamento de escopos para authorities (seria melhor vir do backend)
+                const scopeMapping = {
+                    'employee.read': ['READ_EMPLOYEE'],
+                    'employee.write': ['CREATE_EMPLOYEE', 'UPDATE_EMPLOYEE'],
+                    'employee.delete': ['DELETE_EMPLOYEE'],
+                    'report.read': ['READ_REPORT'],
+                    'report.write': ['CREATE_REPORT', 'UPDATE_REPORT'],
+                    'report.delete': ['DELETE_REPORT'],
+                    'admin': ['ROLE_ADMIN']
+                };
+
+                const userAuthorities = payload.authorities || [];
+
+                // Tratar scopes - pode ser string ou array
+                let scopes = [];
+                if (payload.scope) {
+                    if (typeof payload.scope === 'string') {
+                        scopes = payload.scope.split(' ');
+                    } else if (Array.isArray(payload.scope)) {
+                        scopes = payload.scope;
+                    } else {
+                        console.warn('Formato de scope desconhecido:', typeof payload.scope, payload.scope);
+                        scopes = [payload.scope.toString()];
+                    }
+                }
+
+                // Também verificar se existem scopes como propriedade separada
+                if (payload.scp && Array.isArray(payload.scp)) {
+                    scopes = [...scopes, ...payload.scp];
+                }
+
+                // Remover duplicatas dos scopes
+                scopes = [...new Set(scopes)];
+
+                console.log('Scopes encontrados:', scopes);
+                console.log('Authorities encontradas:', userAuthorities);
+
+                if (scopes.length === 0) {
+                    analysisHTML += '<tr><td colspan="4">⚠️ Nenhum escopo encontrado no token</td></tr>';
+                } else {
+                    scopes.forEach(scope => {
+                        if (scopeMapping[scope]) {
+                            scopeMapping[scope].forEach(authority => {
+                                const hasAuthority = userAuthorities.includes(authority);
+                                const inToken = userAuthorities.includes(authority);
+
+                                analysisHTML += `<tr>
+                                    <td>${scope}</td>
+                                    <td><code>${authority}</code></td>
+                                    <td class="${hasAuthority ? 'granted' : 'denied'}">${hasAuthority ? '✅ Sim' : '❌ Não'}</td>
+                                    <td class="${inToken ? 'granted' : 'denied'}">${inToken ? '✅ Sim' : '❌ Não'}</td>
+                                </tr>`;
+                            });
+                        } else {
+                            analysisHTML += `<tr>
+                                <td>${scope}</td>
+                                <td><em>Mapeamento não definido</em></td>
+                                <td>❓ Desconhecido</td>
+                                <td>❓ Desconhecido</td>
+                            </tr>`;
+                        }
+                    });
+                }
+
+                analysisHTML += '</tbody></table>';
+                analysisDiv.innerHTML = analysisHTML;
+
+            } catch (error) {
+                analysisDiv.innerHTML = '<p>❌ Erro ao analisar permissões: ' + error.message + '</p>';
+            }
+        } else {
+            analysisDiv.innerHTML = '<p>⚠️ Nenhum token disponível para análise</p>';
+        }
+    }
+</script>
 </body>
 </html>
