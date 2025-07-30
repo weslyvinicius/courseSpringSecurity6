@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth2 - Informações dos Clientes</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            color: #2d3748;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .client-card {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+
+        .client-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            border-color: #4299e1;
+        }
+
+        .client-card h3 {
+            color: #2d3748;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .client-info {
+            background: #1a202c;
+            color: #68d391;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #2d3748;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #fbb6ce;
+            font-weight: bold;
+        }
+
+        .copy-btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+
+        .copy-btn:hover {
+            background: #3182ce;
+        }
+
+        .quick-copy {
+            background: #e6fffa;
+            border: 1px solid #38b2ac;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .curl-example {
+            background: #1a202c;
+            color: #68d391;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #4299e1, #3182ce);
+            color: white;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin: 10px;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.3);
+        }
+
+        .btn-test {
+            background: linear-gradient(45deg, #38a169, #2f855a);
+        }
+
+        .scope-badge {
+            display: inline-block;
+            background: #bee3f8;
+            color: #2b6cb0;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin: 2px;
+        }
+
+        .warning-box {
+            background: #fefcbf;
+            border: 1px solid #d69e2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .endpoint-info {
+            background: #edf2f7;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #4299e1;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📋 Clientes OAuth2 Configurados</h1>
+
+    <div class="endpoint-info">
+        <h4>🔗 Endpoint do Authorization Server:</h4>
+        <p><strong>POST</strong> <code>http://localhost:8080/oauth2/token</code></p>
+        <p><strong>Grant Type:</strong> <code>client_credentials</code></p>
+    </div>
+
+    <!-- Cliente API -->
+    <div class="client-card">
+        <h3>📡 API Client</h3>
+        <p>Cliente principal para acesso a APIs com permissões completas.</p>
+        
+        <div class="client-info">
+            <div class="info-row">
+                <span class="info-label">Client ID:</span>
+                <span>
+                    <span th:text="${apiClient.id}">api-client</span>
+                    <button class="copy-btn" th:onclick="'copyText(\'' + ${apiClient.id} + '\')'">📋</button>
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Client Secret:</span>
+                <span>
+                    <span th:text="${apiClient.secret}">api-secret</span>
+                    <button class="copy-btn" th:onclick="'copyText(\'' + ${apiClient.secret} + '\')'">📋</button>
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Scopes:</span>
+                <span>
+                    <span class="scope-badge">read</span>
+                    <span class="scope-badge">write</span>
+                    <span class="scope-badge">admin</span>
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Token TTL:</span>
+                <span>1 hora</span>
+            </div>
+        </div>
+
+        <div class="quick-copy">
+            <h5>📋 Exemplo de Requisição cURL:</h5>
+            <div class="curl-example">
+curl -X POST http://localhost:8080/oauth2/token \<br>
+&nbsp;&nbsp;-H "Content-Type: application/x-www-form-urlencoded" \<br>
+&nbsp;&nbsp;-H "Authorization: Basic $(echo -n 'api-client:api-secret' | base64)" \<br>
+&nbsp;&nbsp;-d "grant_type=client_credentials&scope=read write admin"
+            </div>
+            <button class="copy-btn" onclick="copyApiCurl()">📋 Copiar cURL</button>
+        </div>
+
+        <div style="text-align: center;">
+            <a href="/client-credentials?client=api" class="btn btn-test">🚀 Testar este Cliente</a>
+        </div>
+    </div>
+
+    <!-- Cliente Test -->
+    <div class="client-card">
+        <h3>🧪 Test Client</h3>
+        <p>Cliente para testes com escopo limitado e TTL reduzido.</p>
+        
+        <div class="client-info">
+            <div class="info-row">
+                <span class="info-label">Client ID:</span>
+                <span>
+                    <span th:text="${testClient.id}">test-client</span>
+                    <button class="copy-btn" th:onclick="'copyText(\'' + ${testClient.id} + '\')'">📋</button>
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Client Secret:</span>
+                <span>
+                    <span th:text="${testClient.secret}">test-secret</span>
+                    <button class="copy-btn" th:onclick="'copyText(\'' + ${testClient.secret} + '\')'">📋</button>
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Scopes:</span>
+                <span>
+                    <span class="scope-badge">test</span>
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Token TTL:</span>
+                <span>30 minutos</span>
+            </div>
+        </div>
+
+        <div class="quick-copy">
+            <h5>📋 Exemplo de Requisição cURL:</h5>
+            <div class="curl-example">
+curl -X POST http://localhost:8080/oauth2/token \<br>
+&nbsp;&nbsp;-H "Content-Type: application/x-www-form-urlencoded" \<br>
+&nbsp;&nbsp;-H "Authorization: Basic $(echo -n 'test-client:test-secret' | base64)" \<br>
+&nbsp;&nbsp;-d "grant_type=client_credentials&scope=test"
+            </div>
+            <button class="copy-btn" onclick="copyTestCurl()">📋 Copiar cURL</button>
+        </div>
+
+        <div style="text-align: center;">
+            <a href="/client-credentials?client=test" class="btn btn-test">🚀 Testar este Cliente</a>
+        </div>
+    </div>
+
+    <!-- Informações importantes -->
+    <div class="warning-box">
+        <h4>⚠️ Informações Importantes:</h4>
+        <ul>
+            <li><strong>Segurança:</strong> Nunca exponha o <code>client_secret</code> em aplicações client-side!</li>
+            <li><strong>Ambiente:</strong> Esta configuração é apenas para desenvolvimento - use passwords criptografadas em produção!</li>
+            <li><strong>Scopes:</strong> Definem as permissões que o token terá ao acessar recursos</li>
+            <li><strong>TTL:</strong> Tempo de vida do token - após expirar, um novo token deve ser solicitado</li>
+        </ul>
+    </div>
+
+    <!-- Como usar os tokens -->
+    <div style="background: #f0fff4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #38a169;">
+        <h4>🎯 Como usar os tokens obtidos:</h4>
+        <div class="curl-example">
+# Exemplo de uso do token em uma API protegida<br>
+curl -X GET https://sua-api.com/api/recursos \<br>
+&nbsp;&nbsp;-H "Authorization: Bearer SEU_ACCESS_TOKEN_AQUI" \<br>
+&nbsp;&nbsp;-H "Content-Type: application/json"
+        </div>
+    </div>
+
+    <!-- Botões de navegação -->
+    <div style="text-align: center; margin-top: 40px;">
+        <a href="/client-credentials" class="btn">🏠 Voltar ao Demo</a>
+        <a href="/" class="btn">📖 Ver Authorization Code Demo</a>
+    </div>
+</div>
+
+<script>
+    function copyText(text) {
+        navigator.clipboard.writeText(text).then(function() {
+            showCopyFeedback(event.target);
+        }).catch(function() {
+            // Fallback para browsers mais antigos
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showCopyFeedback(event.target);
+        });
+    }
+
+    function copyApiCurl() {
+        const curl = `curl -X POST http://localhost:8080/oauth2/token \\
+  -H "Content-Type: application/x-www-form-urlencoded" \\
+  -H "Authorization: Basic $(echo -n 'api-client:api-secret' | base64)" \\
+  -d "grant_type=client_credentials&scope=read write admin"`;
+        
+        copyText(curl);
+    }
+
+    function copyTestCurl() {
+        const curl = `curl -X POST http://localhost:8080/oauth2/token \\
+  -H "Content-Type: application/x-www-form-urlencoded" \\
+  -H "Authorization: Basic $(echo -n 'test-client:test-secret' | base64)" \\
+  -d "grant_type=client_credentials&scope=test"`;
+        
+        copyText(curl);
+    }
+
+    function showCopyFeedback(button) {
+        const originalText = button.textContent;
+        button.textContent = '✅';
+        button.style.background = '#38a169';
+        
+        setTimeout(() => {
+            button.textContent = originalText;
+            button.style.background = '#4299e1';
+        }, 1500);
+    }
+</script>
+</body>
+</html>

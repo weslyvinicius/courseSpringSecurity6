@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OAuth2 - Resultado</title>
+    <title>OAuth2 Client Credentials - Resultado</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
             padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
             min-height: 100vh;
             color: #333;
         }
@@ -19,11 +19,11 @@
             background: white;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
         }
 
         h1 {
-            color: #4a5568;
+            color: #2d3748;
             text-align: center;
             margin-bottom: 30px;
         }
@@ -44,28 +44,46 @@
             margin: 20px 0;
         }
 
-        .code-section {
+        .token-section {
             background: #1a202c;
             color: #68d391;
             padding: 20px;
             border-radius: 8px;
             margin: 15px 0;
             font-family: 'Courier New', monospace;
-            overflow-x: auto;
             position: relative;
         }
 
-        .code-section h3 {
+        .token-section h3 {
             color: #fbb6ce;
             margin-top: 0;
         }
 
-        .code-content {
+        .token-content {
             background: #2d3748;
             padding: 15px;
             border-radius: 5px;
             word-break: break-all;
             border-left: 4px solid #68d391;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+
+        .copy-btn:hover {
+            background: #3182ce;
         }
 
         .json-viewer {
@@ -77,76 +95,101 @@
             overflow-x: auto;
         }
 
-        .back-button {
-            display: inline-block;
-            background: linear-gradient(45deg, #4299e1, #3182ce);
-            color: white;
-            padding: 12px 25px;
-            text-decoration: none;
-            border-radius: 25px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            margin-top: 20px;
-        }
-
-        .back-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.3);
-        }
-
         .info-badge {
             display: inline-block;
             background: #bee3f8;
             color: #2b6cb0;
-            padding: 5px 12px;
-            border-radius: 15px;
+            padding: 8px 15px;
+            border-radius: 20px;
             font-size: 0.9em;
             margin: 5px;
+            font-weight: bold;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #4299e1, #3182ce);
+            color: white;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin: 10px;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.3);
+        }
+
+        .btn-test {
+            background: linear-gradient(45deg, #38a169, #2f855a);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #e53e3e, #c53030);
+        }
+
+        .test-form {
+            background: #f0fff4;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #38a169;
+            margin: 20px 0;
+        }
+
+        .request-info {
+            background: #ebf8ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #4299e1;
         }
 
         .highlight {
-            background: #yellow;
+            background: #fef5e7;
             padding: 2px 5px;
             border-radius: 3px;
             font-weight: bold;
+            color: #744210;
         }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1 th:if="${success}">✅ Fluxo OAuth2 Completado!</h1>
-    <h1 th:if="${error}">❌ Erro no Fluxo OAuth2</h1>
-    <h1 th:if="${!success and !error}">⚠️ Resultado do Fluxo OAuth2</h1>
+    <h1 th:if="${success}">✅ Token Obtido com Sucesso!</h1>
+    <h1 th:if="${error}">❌ Erro ao Obter Token</h1>
 
     <!-- Exibir erro, se houver -->
     <div th:if="${error}" class="error">
         <h3>🚫 Erro:</h3>
         <p th:text="${error}"></p>
-    </div>
-
-    <!-- Exibir Authorization Code (sempre, mesmo com erro na troca por token) -->
-    <div th:if="${authorizationCode}" class="code-section">
-        <h3>🎯 Authorization Code Recebido:</h3>
-        <div class="code-content">
-            <strong>Código:</strong> <span th:text="${authorizationCode}"></span>
+        
+        <div class="request-info">
+            <h4>🔍 Dados da Requisição:</h4>
+            <p><strong>Client ID:</strong> <span th:text="${clientId}"></span></p>
+            <p th:if="${scopes}"><strong>Scopes:</strong> <span th:text="${scopes}"></span></p>
         </div>
-        <p style="color: #a0aec0; font-size: 0.9em; margin-top: 10px;">
-            ✨ Este é o <span class="highlight">Authorization Code</span> que foi gerado pelo seu Authorization Server!<br>
-            Ele é usado para trocar por tokens de acesso.
-        </p>
     </div>
 
-    <!-- Exibir State (se presente) -->
-    <div th:if="${state}" class="info-badge">
-        <strong>State:</strong> <span th:text="${state}"></span>
-    </div>
-
-    <!-- Exibir resposta do token (se sucesso) -->
+    <!-- Exibir sucesso e token -->
     <div th:if="${tokenResponse}" class="success">
-        <h3>🎉 Tokens Obtidos com Sucesso!</h3>
+        <h3>🎉 Access Token Gerado!</h3>
+        <p>Seu cliente foi autenticado com sucesso e recebeu um access token.</p>
 
-        <div class="code-section">
-            <h3>📝 Resposta Completa do /oauth2/token:</h3>
+        <!-- Informações da requisição -->
+        <div class="request-info">
+            <h4>📝 Requisição Realizada:</h4>
+            <p><strong>Client ID:</strong> <span th:text="${clientId}"></span></p>
+            <p th:if="${scopes}"><strong>Scopes Solicitados:</strong> <span th:text="${scopes}"></span></p>
+            <p><strong>Grant Type:</strong> <span class="highlight">client_credentials</span></p>
+            <p><strong>Endpoint:</strong> <code>POST /oauth2/token</code></p>
+        </div>
+
+        <!-- Resposta completa do servidor -->
+        <div class="token-section">
+            <h3>📄 Resposta Completa do Authorization Server:</h3>
             <div class="json-viewer">
                 <div th:each="entry : ${tokenResponse}">
                     <strong th:text="${entry.key}">key</strong>: <span th:text="${entry.value}">value</span><br/>
@@ -154,57 +197,102 @@
             </div>
         </div>
 
-        <!-- Extrair informações importantes dos tokens -->
-        <div th:if="${tokenResponse.access_token}">
-            <div class="code-section">
-                <h3>🔑 Access Token:</h3>
-                <div class="code-content" th:text="${tokenResponse.access_token}"></div>
-            </div>
+        <!-- Access Token destacado -->
+        <div th:if="${tokenResponse.access_token}" class="token-section">
+            <h3>🔑 Access Token:</h3>
+            <button class="copy-btn" onclick="copyToClipboard('accessToken')">📋 Copiar</button>
+            <div class="token-content" id="accessToken" th:text="${tokenResponse.access_token}"></div>
         </div>
 
-        <div th:if="${tokenResponse.id_token}">
-            <div class="code-section">
-                <h3>🆔 ID Token (OpenID Connect):</h3>
-                <div class="code-content" th:text="${tokenResponse.id_token}"></div>
-            </div>
-        </div>
-
-        <div th:if="${tokenResponse.refresh_token}">
-            <div class="code-section">
-                <h3>🔄 Refresh Token:</h3>
-                <div class="code-content" th:text="${tokenResponse.refresh_token}"></div>
-            </div>
-        </div>
-
-        <div>
-                <span class="info-badge" th:if="${tokenResponse.token_type}">
-                    <strong>Tipo:</strong> <span th:text="${tokenResponse.token_type}"></span>
-                </span>
+        <!-- Badges com informações importantes -->
+        <div style="margin: 20px 0;">
+            <span class="info-badge" th:if="${tokenResponse.token_type}">
+                🏷️ Tipo: <span th:text="${tokenResponse.token_type}"></span>
+            </span>
             <span class="info-badge" th:if="${tokenResponse.expires_in}">
-                    <strong>Expira em:</strong> <span th:text="${tokenResponse.expires_in}"></span> segundos
-                </span>
+                ⏰ Expira em: <span th:text="${tokenResponse.expires_in}"></span>s
+            </span>
             <span class="info-badge" th:if="${tokenResponse.scope}">
-                    <strong>Escopo:</strong> <span th:text="${tokenResponse.scope}"></span>
-                </span>
+                🎯 Scopes: <span th:text="${tokenResponse.scope}"></span>
+            </span>
+        </div>
+
+        <!-- Formulário para testar o token -->
+        <div class="test-form">
+            <h4>🧪 Testar Access Token</h4>
+            <p>Use o token obtido para fazer uma chamada simulada a uma API protegida:</p>
+            
+            <form action="/client-credentials/test-token" method="post">
+                <input type="hidden" name="accessToken" th:value="${tokenResponse.access_token}">
+                <button type="submit" class="btn btn-test">
+                    🚀 Testar Token em API Protegida
+                </button>
+            </form>
         </div>
     </div>
 
     <!-- Informações sobre o fluxo -->
     <div style="background: #edf2f7; padding: 20px; border-radius: 8px; margin-top: 20px;">
-        <h4>📚 O que aconteceu:</h4>
+        <h4>📚 O que aconteceu (Client Credentials Grant):</h4>
         <ol>
-            <li><strong>Authorization Request:</strong> Você foi redirecionado para o Authorization Server</li>
-            <li><strong>User Authentication:</strong> Fez login com suas credenciais</li>
-            <li><strong>Authorization Grant:</strong> O servidor gerou um Authorization Code</li>
-            <li th:if="${tokenResponse}"><strong>Token Request:</strong> O código foi trocado por tokens com sucesso</li>
-            <li th:if="${!tokenResponse and authorizationCode}"><strong>Token Request:</strong> Tentativa de trocar código por tokens (com erro)</li>
-            <li th:if="${tokenResponse}"><strong>Access Granted:</strong> Agora você tem tokens para acessar recursos!</li>
+            <li><strong>Requisição Direta:</strong> Sua aplicação enviou credenciais para <code>/oauth2/token</code></li>
+            <li><strong>Autenticação:</strong> Authorization Server validou client_id e client_secret</li>
+            <li th:if="${tokenResponse}"><strong>Token Gerado:</strong> Servidor retornou access_token imediatamente</li>
+            <li th:if="${tokenResponse}"><strong>Pronto para Usar:</strong> Token pode ser usado em APIs protegidas</li>
+            <li th:if="${tokenResponse == null}"><strong>Erro:</strong> Falha na validação das credenciais</li>
         </ol>
+        
+        <div style="margin-top: 15px; padding: 15px; background: #fff5f5; border-left: 4px solid #e53e3e;">
+            <strong>⚠️ Importante:</strong> 
+            <ul style="margin: 10px 0;">
+                <li>Client Credentials Grant <strong>não envolve usuários</strong> - apenas aplicações</li>
+                <li>O token representa a <strong>identidade da aplicação</strong>, não de um usuário</li>
+                <li>Ideal para <strong>comunicação entre serviços</strong> (machine-to-machine)</li>
+                <li>Nunca exponha o <strong>client_secret</strong> em aplicações client-side!</li>
+            </ul>
+        </div>
     </div>
 
+    <!-- Botões de navegação -->
     <div style="text-align: center; margin-top: 30px;">
-        <a href="/" class="back-button">🏠 Voltar ao Início</a>
+        <a href="/client-credentials" class="btn">🏠 Voltar ao Início</a>
+        <a href="/client-credentials/clients-info" class="btn">📝 Ver Clientes</a>
+        
+        <!-- Botão para tentar novamente em caso de erro -->
+        <div th:if="${error}" style="margin-top: 15px;">
+            <a href="/client-credentials" class="btn btn-danger">🔄 Tentar Novamente</a>
+        </div>
     </div>
 </div>
+
+<script>
+    function copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        const text = element.textContent;
+        
+        navigator.clipboard.writeText(text).then(function() {
+            // Feedback visual
+            const btn = element.parentElement.querySelector('.copy-btn');
+            const originalText = btn.textContent;
+            btn.textContent = '✅ Copiado!';
+            btn.style.background = '#38a169';
+            
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.background = '#4299e1';
+            }, 2000);
+        }).catch(function() {
+            // Fallback para browsers mais antigos
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            alert('Token copiado para o clipboard!');
+        });
+    }
+</script>
 </body>
 </html>

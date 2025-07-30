@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OAuth2 Client Demo</title>
+    <title>OAuth2 Client Credentials Demo</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
             min-height: 100vh;
             color: #333;
         }
@@ -19,95 +19,222 @@
             background: white;
             padding: 40px;
             border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
         }
 
         h1 {
-            color: #4a5568;
+            color: #2d3748;
+            text-align: center;
             margin-bottom: 30px;
             font-size: 2.5em;
         }
 
         .description {
-            background: #f7fafc;
+            background: #f0fff4;
             padding: 20px;
             border-radius: 10px;
             margin: 20px 0;
-            border-left: 4px solid #4299e1;
+            border-left: 4px solid #38a169;
         }
 
-        .login-button {
-            display: inline-block;
+        .form-container {
+            background: #f7fafc;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #e2e8f0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #4a5568;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        }
+
+        .btn {
             background: linear-gradient(45deg, #4299e1, #3182ce);
             color: white;
             padding: 15px 30px;
-            text-decoration: none;
-            border-radius: 50px;
-            font-size: 1.2em;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
             font-weight: bold;
+            cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.3);
+            width: 100%;
         }
 
-        .login-button:hover {
+        .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(66, 153, 225, 0.4);
+            box-shadow: 0 8px 25px rgba(66, 153, 225, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #38a169, #2f855a);
+            margin-top: 10px;
         }
 
         .info-box {
-            background: #e6fffa;
-            border: 1px solid #38b2ac;
+            background: #ebf8ff;
+            border: 1px solid #4299e1;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .warning-box {
+            background: #fefcbf;
+            border: 1px solid #d69e2e;
             padding: 15px;
             border-radius: 8px;
-            margin-top: 20px;
-            text-align: left;
+            margin: 15px 0;
         }
 
         code {
-            background: #f1f5f9;
-            padding: 2px 6px;
+            background: #2d3748;
+            color: #68d391;
+            padding: 2px 8px;
             border-radius: 4px;
             font-family: 'Courier New', monospace;
-            color: #e53e3e;
+        }
+
+        .quick-fill {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .quick-fill button {
+            background: #e2e8f0;
+            color: #4a5568;
+            border: 1px solid #cbd5e0;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+
+        .quick-fill button:hover {
+            background: #cbd5e0;
+        }
+
+        .endpoint-info {
+            background: #1a202c;
+            color: #68d391;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
         }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>🔐 OAuth2 Client Demo</h1>
+    <h1>🔐 OAuth2 Client Credentials Demo</h1>
 
     <div class="description">
-        <h3>Teste do Fluxo Authorization Code</h3>
-        <p>Esta aplicação demonstra o fluxo OAuth2 Authorization Code Grant com seu Authorization Server.</p>
+        <h3>🤖 Client Credentials Grant</h3>
+        <p>Este fluxo é usado para <strong>autenticação de aplicação para aplicação</strong> (machine-to-machine). 
+        Não envolve usuários finais - apenas as credenciais do cliente.</p>
+        <p><strong>Casos de uso típicos:</strong> APIs que acessam outras APIs, serviços internos, jobs automatizados.</p>
+    </div>
+
+    <div class="form-container">
+        <h3>🚀 Obter Access Token</h3>
+        
+        <form action="/client-credentials/get-token" method="post">
+            <div class="form-group">
+                <label for="clientId">Client ID:</label>
+                <input type="text" id="clientId" name="clientId" required>
+                <div class="quick-fill">
+                    <button type="button" onclick="fillApiClient()">📡 API Client</button>
+                    <button type="button" onclick="fillTestClient()">🧪 Test Client</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="clientSecret">Client Secret:</label>
+                <input type="password" id="clientSecret" name="clientSecret" required>
+            </div>
+
+            <div class="form-group">
+                <label for="scopes">Scopes (opcional):</label>
+                <input type="text" id="scopes" name="scopes" placeholder="read write admin">
+                <small style="color: #718096;">Deixe vazio para usar os scopes padrão do cliente</small>
+            </div>
+
+            <button type="submit" class="btn">
+                🎯 Obter Access Token
+            </button>
+        </form>
     </div>
 
     <div class="info-box">
-        <h4>📋 Como funciona:</h4>
-        <ol style="text-align: left; margin-left: 20px;">
-            <li>Clique no botão "Fazer Login" abaixo</li>
-            <li>Você será redirecionado para o Authorization Server (porta 8080)</li>
-            <li>Faça login com: <code>user</code> / <code>password</code></li>
-            <li>Após o login, você será redirecionado de volta para esta aplicação</li>
-            <li>Você verá o <strong>Authorization Code</strong> e a troca por tokens</li>
+        <h4>📋 Como funciona o Client Credentials Grant:</h4>
+        <ol>
+            <li><strong>Requisição Direta:</strong> Cliente envia credenciais diretamente para <code>/oauth2/token</code></li>
+            <li><strong>Validação:</strong> Authorization Server valida client_id e client_secret</li>
+            <li><strong>Token Imediato:</strong> Se válido, retorna access_token imediatamente</li>
+            <li><strong>Uso do Token:</strong> Cliente usa o token para acessar APIs protegidas</li>
         </ol>
     </div>
 
-    <div style="margin: 40px 0;">
-        <a href="/login" class="login-button">
-            🚀 Iniciar Fluxo OAuth2
-        </a>
+    <div class="endpoint-info">
+        <h4 style="color: #fbb6ce;">🔗 Endpoint do Authorization Server:</h4>
+        <div style="margin: 10px 0;">
+            <strong>POST</strong> http://localhost:8080/oauth2/token
+        </div>
+        <div style="font-size: 0.9em; color: #a0aec0;">
+            Content-Type: application/x-www-form-urlencoded<br>
+            Authorization: Basic [client_id:client_secret em Base64]<br><br>
+            Body: grant_type=client_credentials&scope=read write
+        </div>
     </div>
 
-    <div class="info-box">
-        <h4>🔧 Configurações atuais:</h4>
-        <ul style="text-align: left; margin-left: 20px;">
-            <li><strong>Client ID:</strong> <code>my-client</code></li>
-            <li><strong>Authorization Server:</strong> <code>http://localhost:8080</code></li>
-            <li><strong>Redirect URI:</strong> <code>http://localhost:8081/callback</code></li>
-            <li><strong>Scopes:</strong> <code>openid profile</code></li>
-        </ul>
+    <div class="warning-box">
+        <strong>⚠️ Importante:</strong> Certifique-se de que seu Authorization Server esteja rodando na porta 8080!
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="/client-credentials/clients-info" class="btn btn-secondary" style="text-decoration: none; display: inline-block;">
+            📝 Ver Informações dos Clientes
+        </a>
     </div>
 </div>
+
+<script>
+    function fillApiClient() {
+        document.getElementById('clientId').value = 'api-client';
+        document.getElementById('clientSecret').value = 'api-secret';
+        document.getElementById('scopes').value = 'read write admin';
+    }
+
+    function fillTestClient() {
+        document.getElementById('clientId').value = 'test-client';
+        document.getElementById('clientSecret').value = 'test-secret';
+        document.getElementById('scopes').value = 'test';
+    }
+</script>
 </body>
 </html>

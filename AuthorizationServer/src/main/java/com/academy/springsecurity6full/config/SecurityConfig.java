@@ -14,22 +14,24 @@ import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
-import org.springframework.security.oauth2.core.oidc.OidcScopes;
 import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
-import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
+import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
+import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 
+import java.time.Duration;
 import java.util.UUID;
 
 /**
  * Classe de configuração de segurança para OAuth2 Authorization Server
+ * CONFIGURADO PARA CLIENT CREDENTIALS GRANT
  *
  * @Configuration - Indica que esta classe contém definições de beans do Spring
  * @EnableWebSecurity - Habilita a configuração de segurança web do Spring Security
@@ -46,19 +48,18 @@ public class SecurityConfig {
 	 * Este SecurityFilterChain tem @Order(1), ou seja, MAIOR PRIORIDADE.
 	 * É responsável por configurar os endpoints específicos do OAuth2 Authorization Server.
 	 *
-	 * Endpoints que serão interceptados por este filtro:
-	 * - /oauth2/authorize (endpoint de autorização)
-	 * - /oauth2/token (endpoint para obter tokens)
+	 * Para Client Credentials, os endpoints principais são:
+	 * - /oauth2/token (endpoint para obter tokens - PRINCIPAL)
 	 * - /oauth2/jwks (endpoint para chaves públicas JWT)
-	 * - /.well-known/oauth-authorization-server (endpoint de descoberta)
-	 * - /.well-known/openid_configuration (endpoint OpenID Connect)
+	 * - /oauth2/introspect (endpoint para introspecção de tokens)
+	 * - /oauth2/revoke (endpoint para revogação de tokens)
 	 */
-
 	@Bean
 	@Order(1)
 	public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http)
 			throws Exception {
-		OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = OAuth2AuthorizationServerConfigurer.authorizationServer();
+		OAuth2AuthorizationServerConfigurer authorizationServerConfigurer =
+				OAuth2AuthorizationServerConfigurer.authorizationServer();
 
 		http
 				.securityMatcher(authorizationServerConfigurer.getEndpointsMatcher())
@@ -66,18 +67,7 @@ public class SecurityConfig {
 				.csrf(csrf -> csrf.ignoringRequestMatchers(
 						authorizationServerConfigurer.getEndpointsMatcher()
 				))
-				.with(authorizationServerConfigurer, (authorizationServer) ->
-						authorizationServer
-								.oidc(Customizer.withDefaults())	// Enable OpenID Connect 1.0
-				)
-				// Redirect to the login page when not authenticated from the
-				// authorization endpoint
-				.exceptionHandling((exceptions) -> exceptions
-						.defaultAuthenticationEntryPointFor(
-								new LoginUrlAuthenticationEntryPoint("/login"),
-								new MediaTypeRequestMatcher(MediaType.TEXT_HTML)
-						)
-				);
+				.with(authorizationServerConfigurer, Customizer.withDefaults());
 
 		return http.build();
 	}
@@ -85,49 +75,38 @@ public class SecurityConfig {
 	/**
 	 * SEGUNDO FILTRO DE SEGURANÇA - DEFAULT
 	 *
-	 * Este SecurityFilterChain tem @Order(2), ou seja, MENOR PRIORIDADE.
-	 * É responsável por configurar a segurança para o resto da aplicação.
-	 *
-	 * ATUALIZAÇÃO: Adicionadas rotas públicas para o simulador de cliente OAuth2
+	 * Para Client Credentials, este filtro é menos importante pois
+	 * a maior parte das interações será via API diretamente no endpoint /oauth2/token
 	 */
 	@Bean
 	@Order(2)
 	public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http)
 			throws Exception {
-		     http
+		http
 				.authorizeHttpRequests((authorize) ->
 						authorize
+								.requestMatchers("/client-credentials").permitAll()
 								.anyRequest().authenticated()
 				)
-				// Form login handles the redirect to the login page from the
-				// authorization server filter chain
 				.formLogin(Customizer.withDefaults());
-
 
 		return http.build();
 	}
 
-
 	/**
 	 * SERVIÇO DE DETALHES DO USUÁRIO
 	 *
-	 * Define como o Spring Security vai buscar informações dos usuários.
-	 * Neste caso, está usando um usuário em memória (apenas para desenvolvimento/testes).
-	 *
-	 * Em produção, normalmente você implementaria um UserDetailsService customizado
-	 * que busca usuários de um banco de dados.
+	 * Para Client Credentials Grant, este bean não é estritamente necessário
+	 * pois não há autenticação de usuário final envolvida.
+	 * Mantemos apenas para compatibilidade caso você queira usar outros grants futuramente.
 	 */
 	@Bean
 	public UserDetailsService userDetailsService() {
-
-		// Cria um usuário em memória para testes
-		var u1 = User.withUsername("user")           // Nome de usuário: "user"
-				.password("password")                 // Senha: "password" (sem criptografia!)
-				.authorities("read")                  // Permissão: "read"
+		var u1 = User.withUsername("user")
+				.password("password")
+				.authorities("read")
 				.build();
 
-		// Retorna um gerenciador de usuários em memória
-		// Em produção, você usaria JdbcUserDetailsManager ou uma implementação customizada
 		return new InMemoryUserDetailsManager(u1);
 	}
 
@@ -135,102 +114,127 @@ public class SecurityConfig {
 	 * CODIFICADOR DE SENHAS
 	 *
 	 * ATENÇÃO: NoOpPasswordEncoder é APENAS para desenvolvimento!
-	 * Ele NÃO criptografa as senhas, deixando-as em texto plano.
-	 *
-	 * Em produção, use:
-	 * - BCryptPasswordEncoder (recomendado)
-	 * - Argon2PasswordEncoder
-	 * - SCryptPasswordEncoder
+	 * Em produção, use BCryptPasswordEncoder ou similar.
 	 */
 	@Bean
 	public PasswordEncoder passwordEncoder() {
-		// NUNCA use em produção! Senhas ficam em texto plano!
+		// NUNCA use em produção! Para desenvolvimento apenas!
 		return NoOpPasswordEncoder.getInstance();
 
-		// Para produção, use algo como:
+		// Para produção:
 		// return new BCryptPasswordEncoder();
 	}
 
 	/**
-	 * REPOSITÓRIO DE CLIENTES REGISTRADOS
+	 * REPOSITÓRIO DE CLIENTES REGISTRADOS - CLIENT CREDENTIALS
 	 *
-	 * Define quais aplicações (clientes) podem usar este Authorization Server.
-	 * Cada cliente precisa ser registrado com suas configurações específicas.
+	 * Para Client Credentials Grant, definimos clientes que representam
+	 * aplicações/serviços que vão acessar recursos em nome de si mesmas,
+	 * não de um usuário específico.
 	 */
 	@Bean
 	public RegisteredClientRepository registeredClientRepository() {
 
-		// Registra um cliente OAuth2
-		RegisteredClient r1 = RegisteredClient.withId(UUID.randomUUID().toString()) // ID único interno
+		// Cliente para Client Credentials Grant
+		RegisteredClient clientCredentialsClient = RegisteredClient
+				.withId(UUID.randomUUID().toString())
 
 				// CREDENCIAIS DO CLIENTE
-				.clientId("my-client")                    // ID público do cliente
-				.clientSecret("secret")                // Senha do cliente (deve ser criptografada em produção!)
+				.clientId("api-client")                    // ID público do cliente
+				.clientSecret("api-secret")                // Senha do cliente (criptografar em produção!)
 
-				// ESCOPOS PERMITIDOS
-				// Escopos definem que tipo de acesso o cliente pode solicitar
-				.scope(OidcScopes.OPENID)             // Escopo obrigatório para OpenID Connect
-				.scope(OidcScopes.PROFILE)            // Permite acessar informações do perfil do usuário
-
-				// URI DE REDIRECIONAMENTO
-				// Após a autenticação, o usuário será redirecionado para esta URL
-				// DEVE ser exatamente igual ao registrado (questão de segurança)
-				.redirectUri("http://localhost:8081/callback")
-				.postLogoutRedirectUri("http://127.0.0.1:8080/")
+				// ESCOPOS PERMITIDOS para este cliente
+				// Em Client Credentials, os escopos definem que recursos/operações
+				// o cliente pode acessar
+				.scope("read")                            // Permissão de leitura
+				.scope("write")                           // Permissão de escrita
+				.scope("admin")                           // Permissões administrativas
 
 				// MÉTODO DE AUTENTICAÇÃO DO CLIENTE
-				// Como o cliente vai se autenticar no Authorization Server
-				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC) // Basic Auth
+				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)  // Basic Auth
+				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)   // Form POST
 
-				// TIPOS DE GRANT PERMITIDOS
-				// Authorization Code: fluxo mais seguro, recomendado para aplicações web
-				.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-				// Refresh Token: permite renovar tokens sem nova autenticação
-				.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+				// GRANT TYPE - Client Credentials
+				.authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+
+				// CONFIGURAÇÕES ESPECÍFICAS DO CLIENTE
+				.clientSettings(ClientSettings.builder()
+						.requireAuthorizationConsent(false)  // Não precisa de consentimento do usuário
+						.build())
+
+				// CONFIGURAÇÕES DE TOKEN
+				.tokenSettings(TokenSettings.builder()
+						.accessTokenTimeToLive(Duration.ofHours(1))    // Token expira em 1 hora
+						.refreshTokenTimeToLive(Duration.ofHours(24))   // N/A para Client Credentials
+						.reuseRefreshTokens(false)                     // N/A para Client Credentials
+						.build())
 
 				.build();
 
-		// Retorna um repositório em memória com o cliente registrado
-		// Em produção, use JdbcRegisteredClientRepository para persistir no banco
-		return new InMemoryRegisteredClientRepository(r1);
+		// Cliente adicional para testes (opcional)
+		RegisteredClient testClient = RegisteredClient
+				.withId(UUID.randomUUID().toString())
+				.clientId("test-client")
+				.clientSecret("test-secret")
+				.scope("test")
+				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+				.authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+				.tokenSettings(TokenSettings.builder()
+						.accessTokenTimeToLive(Duration.ofMinutes(30))  // Token de teste expira em 30 min
+						.build())
+				.build();
+
+		return new InMemoryRegisteredClientRepository(clientCredentialsClient, testClient);
 	}
 
 	/**
 	 * CONFIGURAÇÕES DO AUTHORIZATION SERVER
-	 *
-	 * Define configurações específicas do servidor de autorização,
-	 * como URLs dos endpoints, configurações de JWT, etc.
 	 */
 	@Bean
 	public AuthorizationServerSettings authorizationServerSettings() {
-		// Usando configurações padrão
-		// Os endpoints padrão serão:
-		// - /oauth2/authorize (autorização)
-		// - /oauth2/token (obtenção de tokens)
-		// - /oauth2/jwks (chaves públicas)
-		// - /oauth2/revoke (revogação de tokens)
-		// - /oauth2/introspect (introspecção de tokens)
 		return AuthorizationServerSettings.builder()
-				// Você pode customizar URLs dos endpoints aqui se necessário:
-				// .authorizationEndpoint("/custom/authorize")
-				// .tokenEndpoint("/custom/token")
+				// URLs padrão dos endpoints:
+				// POST /oauth2/token - PRINCIPAL para Client Credentials
+				// GET /oauth2/jwks - Para validação de JWT
+				// POST /oauth2/introspect - Para introspecção de tokens
+				// POST /oauth2/revoke - Para revogar tokens
 				.build();
 	}
 
 	/*
-	 * FLUXO COMPLETO DE AUTENTICAÇÃO:
+	 * FLUXO CLIENT CREDENTIALS GRANT:
 	 *
-	 * 1. Cliente redireciona usuário para: /oauth2/authorize?client_id=client&...
-	 * 2. Usuário não está autenticado → redirecionado para /login
-	 * 3. Usuário faz login com "user"/"password"
-	 * 4. Sistema gera código de autorização e redireciona para: https://springone.io/authorized?code=...
-	 * 5. Cliente troca código por token: POST /oauth2/token
-	 * 6. Cliente usa token para acessar recursos protegidos
+	 * 1. Cliente faz POST para /oauth2/token com:
+	 *    - grant_type=client_credentials
+	 *    - scope=read write (opcional)
+	 *    - Autenticação: Basic Auth ou client_secret no body
+	 *
+	 * 2. Authorization Server valida credenciais do cliente
+	 *
+	 * 3. Se válido, retorna access_token imediatamente
+	 *    (sem authorization code, sem redirect, sem usuário)
+	 *
+	 * 4. Cliente usa access_token para acessar APIs protegidas
+	 *
+	 * EXEMPLO DE REQUISIÇÃO:
+	 * POST /oauth2/token
+	 * Authorization: Basic YXBpLWNsaWVudDphcGktc2VjcmV0 (api-client:api-secret em Base64)
+	 * Content-Type: application/x-www-form-urlencoded
+	 *
+	 * grant_type=client_credentials&scope=read write
+	 *
+	 * RESPOSTA:
+	 * {
+	 *   "access_token": "eyJhbGciOiJSUzI1NiIs...",
+	 *   "token_type": "Bearer",
+	 *   "expires_in": 3600,
+	 *   "scope": "read write"
+	 * }
 	 *
 	 * ENDPOINTS IMPORTANTES:
-	 * - GET /oauth2/authorize - Inicia processo de autorização
-	 * - POST /oauth2/token - Obter/renovar tokens
+	 * - POST /oauth2/token - Obter tokens (PRINCIPAL)
 	 * - GET /oauth2/jwks - Chaves públicas para validar JWT
-	 * - GET /.well-known/oauth-authorization-server - Metadados do servidor
+	 * - POST /oauth2/introspect - Verificar se token é válido
+	 * - POST /oauth2/revoke - Revogar token
 	 */
 }
