@@ -1,0 +1,183 @@
+<!-- =============================================================================
+     TOKEN DISPLAY TEMPLATE FRAGMENT - OAuth2 Client Demo (CORRIGIDO)
+     ============================================================================= -->
+
+<!-- Token Analysis Template -->
+<div th:fragment="tokenAnalysis(tokenResponse)" class="token-analysis-container">
+
+    <!-- Verificar se há tokens para mostrar -->
+    <div th:if="${tokenResponse == null or (tokenResponse.access_token == null and tokenResponse.id_token == null and tokenResponse.refresh_token == null)}"
+         class="no-tokens-message">
+        <div class="info-message">
+            <h3>ℹ️ Nenhum Token Disponível</h3>
+            <p>Não foram encontrados tokens válidos para exibir.</p>
+        </div>
+    </div>
+
+    <!-- Token Details Section - Só mostrar se houver pelo menos um token -->
+    <div th:if="${tokenResponse != null and (tokenResponse.access_token != null or tokenResponse.id_token != null or tokenResponse.refresh_token != null)}"
+         class="token-details-section">
+        <div class="section-header">
+            <h3>📋 Detalhes dos Tokens</h3>
+            <div class="section-actions">
+                <button class="btn btn-outline" onclick="toggleAllTokenDetails()">
+                    <span id="toggle-all-text">👁️ Mostrar Todos</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Detailed Token Displays -->
+        <div class="token-details-grid">
+
+            <!-- Access Token Details -->
+            <div th:if="${tokenResponse.access_token != null and !#strings.isEmpty(tokenResponse.access_token)}"
+                 class="token-detail-panel" id="access-token-details">
+                <div class="token-detail-header" onclick="toggleTokenDetails('access-token')">
+                    <h4>🔑 Access Token - Análise Completa</h4>
+                    <span class="toggle-icon">➕</span>
+                </div>
+                <div class="token-detail-content" id="access-token-content">
+                    <div class="token-raw-display">
+                        <label>Token Completo:</label>
+                        <div class="code-block">
+                            <div class="code-content" id="access-token-full" th:text="${tokenResponse.access_token}"></div>
+                            <button class="copy-code-btn" data-target="access-token-full">📋</button>
+                        </div>
+                    </div>
+
+                    <div class="jwt-decoded-display" id="access-token-decoded" style="display: none;">
+                        <div class="jwt-sections">
+                            <div class="jwt-section header-section">
+                                <h5>Header</h5>
+                                <div class="jwt-content" id="access-token-header"></div>
+                            </div>
+                            <div class="jwt-section payload-section">
+                                <h5>Payload</h5>
+                                <div class="jwt-content" id="access-token-payload"></div>
+                            </div>
+                            <div class="jwt-section signature-section">
+                                <h5>Signature</h5>
+                                <div class="jwt-content" id="access-token-signature"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ID Token Details - Verificação mais robusta -->
+            <div th:if="${tokenResponse.id_token != null and !#strings.isEmpty(tokenResponse.id_token)}"
+                 class="token-detail-panel" id="id-token-details">
+                <div class="token-detail-header" onclick="toggleTokenDetails('id-token')">
+                    <h4>🆔 ID Token - Análise Completa</h4>
+                    <span class="toggle-icon">➕</span>
+                </div>
+                <div class="token-detail-content" id="id-token-content">
+                    <div class="token-raw-display">
+                        <label>Token Completo:</label>
+                        <div class="code-block">
+                            <div class="code-content" id="id-token-full" th:text="${tokenResponse.id_token}"></div>
+                            <button class="copy-code-btn" data-target="id-token-full">📋</button>
+                        </div>
+                    </div>
+
+                    <div class="jwt-decoded-display" id="id-token-decoded" style="display: none;">
+                        <div class="jwt-sections">
+                            <div class="jwt-section header-section">
+                                <h5>Header</h5>
+                                <div class="jwt-content" id="id-token-header"></div>
+                            </div>
+                            <div class="jwt-section payload-section">
+                                <h5>Payload</h5>
+                                <div class="jwt-content" id="id-token-payload"></div>
+                            </div>
+                            <div class="jwt-section signature-section">
+                                <h5>Signature</h5>
+                                <div class="jwt-content" id="id-token-signature"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Refresh Token Details -->
+            <div th:if="${tokenResponse.refresh_token != null and !#strings.isEmpty(tokenResponse.refresh_token)}"
+                 class="token-detail-panel" id="refresh-token-details">
+                <div class="token-detail-header" onclick="toggleTokenDetails('refresh-token')">
+                    <h4>🔄 Refresh Token - Análise Completa</h4>
+                    <span class="toggle-icon">➕</span>
+                </div>
+                <div class="token-detail-content" id="refresh-token-content">
+                    <div class="token-raw-display">
+                        <label>Token Completo:</label>
+                        <div class="code-block">
+                            <div class="code-content" id="refresh-token-full" th:text="${tokenResponse.refresh_token}"></div>
+                            <button class="copy-code-btn" data-target="refresh-token-full">📋</button>
+                        </div>
+                    </div>
+
+                    <div th:if="${#strings.startsWith(tokenResponse.refresh_token, 'ey')}"
+                         class="jwt-decoded-display" id="refresh-token-decoded" style="display: none;">
+                        <div class="jwt-sections">
+                            <div class="jwt-section header-section">
+                                <h5>Header</h5>
+                                <div class="jwt-content" id="refresh-token-header"></div>
+                            </div>
+                            <div class="jwt-section payload-section">
+                                <h5>Payload</h5>
+                                <div class="jwt-content" id="refresh-token-payload"></div>
+                            </div>
+                            <div class="jwt-section signature-section">
+                                <h5>Signature</h5>
+                                <div class="jwt-content" id="refresh-token-signature"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div th:unless="${#strings.startsWith(tokenResponse.refresh_token, 'ey')}" class="non-jwt-notice">
+                        <p>ℹ️ Este refresh token não é um JWT e não pode ser decodificado.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Token Metadata Section - Só mostrar se houver tokenResponse -->
+    <div th:if="${tokenResponse != null}" class="token-metadata-section">
+        <h3>📊 Metadados dos Tokens</h3>
+        <div class="metadata-grid">
+            <div th:if="${tokenResponse.token_type != null}" class="metadata-item">
+                <label>Tipo:</label>
+                <span class="metadata-value" th:text="${tokenResponse.token_type}">Bearer</span>
+            </div>
+            <div th:if="${tokenResponse.expires_in != null}" class="metadata-item">
+                <label>Expira em:</label>
+                <span class="metadata-value" th:text="${tokenResponse.expires_in + ' segundos'}">3600 segundos</span>
+            </div>
+            <div th:if="${tokenResponse.scope != null and !#strings.isEmpty(tokenResponse.scope)}" class="metadata-item">
+                <label>Escopo:</label>
+                <span class="metadata-value" th:text="${tokenResponse.scope}">openid profile</span>
+            </div>
+            <div class="metadata-item">
+                <label>Recebido em:</label>
+                <span class="metadata-value" id="token-received-time"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions - Só mostrar se houver tokens -->
+    <div th:if="${tokenResponse != null and (tokenResponse.access_token != null or tokenResponse.id_token != null or tokenResponse.refresh_token != null)}"
+         class="token-quick-actions">
+        <button class="btn btn-primary" onclick="testWithJwtIo()">
+            🔍 Verificar em JWT.io
+        </button>
+        <button class="btn btn-secondary" onclick="copyAllTokens()">
+            📋 Copiar Todos os Tokens
+        </button>
+        <button class="btn btn-info" onclick="exportTokenData()">
+            📥 Exportar JSON
+        </button>
+        <button class="btn btn-warning" onclick="showTokenExpirationInfo()">
+            ⏰ Verificar Expiração
+        </button>
+    </div>
+</div>

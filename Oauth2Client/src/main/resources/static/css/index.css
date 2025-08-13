@@ -1,0 +1,252 @@
+/* =============================================================================
+   INDEX PAGE SPECIFIC STYLES - OAuth2 Client Demo
+   ============================================================================= */
+
+/* Header Override for Index */
+.header h1 {
+    font-size: 2.8em;
+}
+
+/* Flows Container */
+.flows-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 30px;
+    margin: 40px 0;
+}
+
+/* Flow Cards */
+.flow-card {
+    background: linear-gradient(145deg, #f8fafc, #e2e8f0);
+    border-radius: 15px;
+    padding: 30px;
+    border: 2px solid transparent;
+    transition: all 0.4s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.flow-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, #4299e1, #805ad5);
+    transform: scaleX(0);
+    transition: transform 0.4s ease;
+}
+
+.flow-card:hover {
+    transform: translateY(-8px);
+    border-color: #4299e1;
+    box-shadow: 0 20px 40px rgba(66, 153, 225, 0.3);
+}
+
+.flow-card:hover::before {
+    transform: scaleX(1);
+}
+
+/* Flow Header */
+.flow-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.flow-icon {
+    font-size: 2.5em;
+    margin-right: 15px;
+    background: linear-gradient(135deg, #4299e1, #805ad5);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.flow-title {
+    color: #2d3748;
+    font-size: 1.5em;
+    font-weight: 600;
+}
+
+/* Flow Content */
+.flow-description {
+    color: #4a5568;
+    line-height: 1.6;
+    margin-bottom: 25px;
+    font-size: 1.05em;
+}
+
+/* Flow Steps */
+.flow-steps {
+    background: rgba(66, 153, 225, 0.08);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 25px;
+}
+
+.step-item {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    padding: 8px 0;
+}
+
+.step-item:last-child {
+    margin-bottom: 0;
+}
+
+.step-number {
+    background: linear-gradient(135deg, #4299e1, #3182ce);
+    color: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85em;
+    font-weight: bold;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.step-text {
+    color: #2d3748;
+    font-size: 0.95em;
+    line-height: 1.4;
+}
+
+/* Flow Button */
+.flow-button {
+    display: inline-block;
+    background: linear-gradient(135deg, #4299e1, #3182ce);
+    color: white;
+    padding: 15px 30px;
+    text-decoration: none;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 1.1em;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.flow-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s;
+}
+
+.flow-button:hover::before {
+    left: 100%;
+}
+
+.flow-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(66, 153, 225, 0.4);
+}
+
+.refresh-button {
+    background: linear-gradient(135deg, #805ad5, #553c9a);
+}
+
+.refresh-button:hover {
+    box-shadow: 0 10px 25px rgba(128, 90, 213, 0.4);
+}
+
+/* Info List */
+.info-list {
+    list-style: none;
+}
+
+.info-list li {
+    color: #2c5282;
+    margin-bottom: 8px;
+    padding-left: 20px;
+    position: relative;
+    line-height: 1.5;
+}
+
+.info-list li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: #38a169;
+    font-weight: bold;
+}
+
+/* Config Preview */
+.config-preview {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.config-item {
+    display: flex;
+    margin-bottom: 5px;
+}
+
+.config-label {
+    color: #805ad5;
+    font-weight: bold;
+    min-width: 120px;
+}
+
+.config-value {
+    color: #2d3748;
+}
+
+/* Responsive for Index */
+@media (max-width: 768px) {
+    .flows-container {
+        grid-template-columns: 1fr;
+    }
+
+    .header h1 {
+        font-size: 2.2em;
+    }
+}
+
+/* Refresh Token Flow Button Styling */
+.flow-button.refresh-button {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    border: 2px solid #8b5cf6;
+    color: white;
+}
+
+.flow-button.refresh-button:hover {
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    border-color: #7c3aed;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+}
+
+.flow-button.refresh-button:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2);
+}
+
+/* Refresh Flow Card Enhancement */
+.flow-card:has(.refresh-button) {
+    border-left: 4px solid #8b5cf6;
+}
+
+.flow-card:has(.refresh-button):hover {
+    box-shadow: 0 12px 40px rgba(139, 92, 246, 0.15);
+}

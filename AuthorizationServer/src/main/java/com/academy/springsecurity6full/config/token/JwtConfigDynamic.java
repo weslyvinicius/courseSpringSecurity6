@@ -1,4 +1,4 @@
-package com.academy.springsecurity6full.config;
+package com.academy.springsecurity6full.config.token;
 
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;

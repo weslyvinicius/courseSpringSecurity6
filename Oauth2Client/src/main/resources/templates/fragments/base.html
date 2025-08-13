@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title, specificCss)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title ?: 'OAuth2 Client Demo'}">OAuth2 Client Demo</title>
+    
+    <!-- Common CSS -->
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+    
+    <!-- Page Specific CSS -->
+    <th:block th:if="${specificCss != null}">
+        <link rel="stylesheet" th:href="@{'/css/' + ${specificCss} + '.css'}">
+    </th:block>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔐</text></svg>">
+</head>
+
+<body th:fragment="body">
+    <!-- Content será injetado aqui -->
+    
+    <!-- Common Scripts -->
+    <script th:src="@{/js/common.js}"></script>
+</body>
+</html>

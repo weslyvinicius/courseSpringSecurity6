@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- Header Fragment -->
+    <div th:fragment="header(title, subtitle, icon)" class="header">
+        <h1>
+            <span th:if="${icon != null}" th:text="${icon}"></span>
+            <th:block th:text="${title}">Título</th:block>
+        </h1>
+        <p class="subtitle" th:if="${subtitle != null}" th:text="${subtitle}">Subtítulo</p>
+    </div>
+
+    <!-- Navigation Buttons Fragment -->
+    <div th:fragment="navigation" class="action-buttons">
+        <a href="/" class="btn btn-secondary">
+            🏠 Voltar ao Menu
+        </a>
+        <a href="/configure" class="btn btn-primary">
+            🔄 Nova Autorização
+        </a>
+    </div>
+
+    <!-- Breadcrumb Fragment -->
+    <nav th:fragment="breadcrumb(items)" class="breadcrumb" th:if="${items != null and !items.isEmpty()}">
+        <div class="breadcrumb-container">
+            <th:block th:each="item, iterStat : ${items}">
+                <a th:if="${item.url != null}" 
+                   th:href="${item.url}" 
+                   th:text="${item.text}"
+                   class="breadcrumb-item breadcrumb-link">Item</a>
+                <span th:if="${item.url == null}" 
+                      th:text="${item.text}"
+                      class="breadcrumb-item breadcrumb-current">Item Atual</span>
+                <span th:if="${!iterStat.last}" class="breadcrumb-separator">›</span>
+            </th:block>
+        </div>
+    </nav>
+</body>
+</html>

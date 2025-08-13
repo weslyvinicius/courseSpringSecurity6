@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/base :: head('OAuth2 Refresh Token - Configuração', 'refresh-token')}">
+</head>
+<body>
+    <div class="main-container">
+        <!-- Header -->
+        <div th:replace="~{fragments/header :: header('🔄 Refresh Token Flow', 'Renovar tokens de acesso usando Refresh Token', null)}">
+        </div>
+
+        <!-- Breadcrumb -->
+        <div th:replace="~{fragments/header :: breadcrumb(${breadcrumb})}"></div>
+
+        <!-- Clients Section -->
+        <div class="clients-section" th:if="${clients != null and !clients.isEmpty()}">
+            <div class="clients-title">Clientes Disponíveis para Refresh Token</div>
+            <div class="client-selector">
+                <label class="client-option" th:each="client, iterStat : ${clients}">
+                    <input type="radio" 
+                           name="selectedClient" 
+                           th:value="${client.clientId}"
+                           th:checked="${iterStat.first}"
+                           th:data-client-id="${client.clientId}"
+                           th:data-client-secret="${client.clientSecret}"
+                           th:data-token-endpoint="${client.tokenEndpoint}"
+                           th:data-scopes="${#strings.listJoin(client.scopes, ' ')}"
+                           th:data-name="${client.name}">
+                    <div class="client-content">
+                        <div>
+                            <div class="client-name" th:text="${client.name}">Client Name</div>
+                            <div class="client-id" th:text="${client.clientId}">client-id</div>
+                        </div>
+                    </div>
+                    <span class="checkmark"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Refresh Token Form -->
+        <form action="/oauth2/token/refresh" method="post" id="refreshTokenForm">
+            <div class="section section-form">
+                <div class="section-title form icon-form">Parâmetros do Refresh Token</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="clientName">Nome do Cliente</label>
+                        <input type="text" 
+                               id="clientName" 
+                               name="clientName" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].name} : 'Meu Cliente'" 
+                               readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="clientId">Client ID</label>
+                        <input type="text" 
+                               id="clientId" 
+                               name="clientId" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].clientId} : 'my-client'" 
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="clientSecret">Client Secret</label>
+                        <input type="password" 
+                               id="clientSecret" 
+                               name="clientSecret" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].clientSecret} : ''"
+                               placeholder="Será preenchido automaticamente"
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="grantType">Grant Type</label>
+                        <input type="text" 
+                               id="grantType" 
+                               name="grantType" 
+                               class="form-input"
+                               value="refresh_token" 
+                               readonly>
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label class="form-label" for="refreshToken">Refresh Token *</label>
+                        <textarea id="refreshToken" 
+                                  name="refreshToken" 
+                                  class="form-input form-textarea"
+                                  rows="4"
+                                  placeholder="Cole aqui o refresh token válido obtido anteriormente..."
+                                  required></textarea>
+                        <small class="form-help">Este token deve ter sido obtido em uma autorização anterior</small>
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label class="form-label" for="tokenEndpoint">Token Endpoint</label>
+                        <input type="url" 
+                               id="tokenEndpoint" 
+                               name="tokenEndpoint" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].tokenEndpoint} : 'http://localhost:8080/oauth2/token'" 
+                               required>
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label class="form-label" for="scope">Scope (opcional)</label>
+                        <input type="text" 
+                               id="scope" 
+                               name="scope" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${#strings.listJoin(clients[0].scopes, ' ')} : 'openid profile'" 
+                               placeholder="Deixe vazio para manter os scopes originais">
+                        <small class="form-help">Se especificado, deve ser igual ou menor que o scope original</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div class="loading" id="loading" style="display: none;">
+                <div class="spinner"></div>
+                <span>Renovando tokens...</span>
+            </div>
+
+            <div class="action-buttons">
+                <button type="submit" class="btn btn-success" id="refreshBtn">
+                    🔄 Renovar Token
+                </button>
+                <a href="/" class="btn btn-secondary">
+                    ← Voltar ao Menu
+                </a>
+            </div>
+        </form>
+
+        <!-- Info Section -->
+        <div class="section section-info">
+            <div class="section-title icon-info">Como Funciona o Refresh Token</div>
+            <div class="refresh-flow-steps">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <strong>Configurar Cliente:</strong> Selecione o cliente OAuth2 que foi usado na autorização original
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <strong>Fornecer Refresh Token:</strong> Cole o refresh token válido obtido anteriormente
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <strong>Solicitar Renovação:</strong> O sistema fará a requisição para o token endpoint
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <strong>Receber Novos Tokens:</strong> Novos access token e refresh token serão gerados
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-notes">
+                <h4>⚠️ Pontos Importantes:</h4>
+                <ul>
+                    <li>O refresh token deve ser válido e não expirado</li>
+                    <li>O client ID e secret devem ser os mesmos da autorização original</li>
+                    <li>O scope solicitado não pode ser maior que o original</li>
+                    <li>Alguns servidores podem invalidar o refresh token anterior após o uso</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script th:src="@{/js/common.js}"></script>
+    <script th:src="@{/js/refresh-token.js}"></script>
+</body>
+</html>

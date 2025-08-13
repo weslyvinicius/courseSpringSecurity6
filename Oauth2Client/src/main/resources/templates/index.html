@@ -1,113 +1,103 @@
 <!DOCTYPE html>
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OAuth2 Client Demo</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-        }
-
-        .container {
-            background: white;
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-
-        h1 {
-            color: #4a5568;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-        }
-
-        .description {
-            background: #f7fafc;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-            border-left: 4px solid #4299e1;
-        }
-
-        .login-button {
-            display: inline-block;
-            background: linear-gradient(45deg, #4299e1, #3182ce);
-            color: white;
-            padding: 15px 30px;
-            text-decoration: none;
-            border-radius: 50px;
-            font-size: 1.2em;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.3);
-        }
-
-        .login-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(66, 153, 225, 0.4);
-        }
-
-        .info-box {
-            background: #e6fffa;
-            border: 1px solid #38b2ac;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            text-align: left;
-        }
-
-        code {
-            background: #f1f5f9;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            color: #e53e3e;
-        }
-    </style>
+<head th:replace="~{fragments/base :: head('OAuth2 Client Demo - Menu Principal', 'index')}">
 </head>
 <body>
-<div class="container">
-    <h1>🔐 OAuth2 Client Demo</h1>
+    <div class="main-container">
+        <!-- Header -->
+        <div th:replace="~{fragments/header :: header('🔐 OAuth2 Client Demo', 'Demonstração completa dos fluxos OAuth2 Authorization Code e Refresh Token', null)}">
+        </div>
 
-    <div class="description">
-        <h3>Teste do Fluxo Authorization Code</h3>
-        <p>Esta aplicação demonstra o fluxo OAuth2 Authorization Code Grant com seu Authorization Server.</p>
+        <!-- Flows Container -->
+        <div class="flows-container">
+            <!-- Authorization Code Flow Card -->
+            <div class="flow-card">
+                <div class="flow-header">
+                    <div class="flow-icon">🚀</div>
+                    <div class="flow-title">Authorization Code Flow</div>
+                </div>
+
+                <div class="flow-description">
+                    Fluxo completo de autorização OAuth2 onde o usuário é redirecionado para o Authorization Server para
+                    autenticação e consentimento.
+                </div>
+
+                <div class="flow-steps">
+                    <div class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-text">Configurar parâmetros do cliente OAuth2</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-text">Redirecionamento para Authorization Server</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-text">Receber Authorization Code no callback</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">4</div>
+                        <div class="step-text">Trocar código por Access Token</div>
+                    </div>
+                </div>
+
+                <a href="/configure" class="flow-button">
+                    🔓 Iniciar Authorization Code Flow
+                </a>
+            </div>
+
+            <!-- Refresh Token Flow Card -->
+            <div class="flow-card">
+                <div class="flow-header">
+                    <div class="flow-icon">🔄</div>
+                    <div class="flow-title">Refresh Token Flow</div>
+                </div>
+
+                <div class="flow-description">
+                    Renovação de Access Tokens usando Refresh Token sem necessidade de nova autenticação do usuário.
+                </div>
+
+                <div class="flow-steps">
+                    <div class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-text">Configurar dados do cliente</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-text">Fornecer Refresh Token válido</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-text">Solicitar novo Access Token</div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">4</div>
+                        <div class="step-text">Receber novos tokens</div>
+                    </div>
+                </div>
+
+                <a href="/oauth2/token/refresh-form" class="flow-button refresh-button">
+                    🔄 Iniciar Refresh Token Flow
+                </a>
+            </div>
+        </div>
+
+        <!-- Info Section -->
+        <div class="section section-info">
+            <div class="section-title icon-info">Recursos Disponíveis</div>
+            <ul class="info-list">
+                <li>Fluxo Authorization Code completo com redirecionamento</li>
+                <li>Suporte a múltiplos clientes OAuth2 pré-configurados</li>
+                <li>Renovação automática de tokens com Refresh Token</li>
+                <li>Validação em tempo real de URLs e parâmetros</li>
+                <li>Decodificação automática de tokens JWT (ID Token)</li>
+                <li>Interface responsiva e intuitiva</li>
+                <li>Logs detalhados de todas as operações</li>
+            </ul>
+        </div>
     </div>
 
-    <div class="info-box">
-        <h4>📋 Como funciona:</h4>
-        <ol style="text-align: left; margin-left: 20px;">
-            <li>Clique no botão "Fazer Login" abaixo</li>
-            <li>Você será redirecionado para o Authorization Server (porta 8080)</li>
-            <li>Faça login com: <code>user</code> / <code>password</code></li>
-            <li>Após o login, você será redirecionado de volta para esta aplicação</li>
-            <li>Você verá o <strong>Authorization Code</strong> e a troca por tokens</li>
-        </ol>
-    </div>
-
-    <div style="margin: 40px 0;">
-        <a href="/login" class="login-button">
-            🚀 Iniciar Fluxo OAuth2
-        </a>
-    </div>
-
-    <div class="info-box">
-        <h4>🔧 Configurações atuais:</h4>
-        <ul style="text-align: left; margin-left: 20px;">
-            <li><strong>Client ID:</strong> <code>my-client</code></li>
-            <li><strong>Authorization Server:</strong> <code>http://localhost:8080</code></li>
-            <li><strong>Redirect URI:</strong> <code>http://localhost:8081/callback</code></li>
-            <li><strong>Scopes:</strong> <code>openid profile</code></li>
-        </ul>
-    </div>
-</div>
+    <!-- Scripts -->
+    <script th:src="@{/js/common.js}"></script>
 </body>
 </html>

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/base :: head('OAuth2 Authorization Code - Configuração', 'configure')}">
+</head>
+<body>
+    <div class="main-container">
+        <!-- Header -->
+        <div th:replace="~{fragments/header :: header('🚀 Authorization Code Flow', 'Configure os parâmetros do cliente OAuth2', null)}">
+        </div>
+
+        <!-- Breadcrumb -->
+        <div th:replace="~{fragments/header :: breadcrumb(${breadcrumb})}"></div>
+
+        <!-- Clients Section -->
+        <div class="clients-section" th:if="${clients != null and !clients.isEmpty()}">
+            <div class="clients-title">Clientes Disponíveis</div>
+            <div class="client-selector">
+                <label class="client-option" th:each="client, iterStat : ${clients}">
+                    <input type="radio" 
+                           name="selectedClient" 
+                           th:value="${client.clientId}"
+                           th:checked="${iterStat.first}"
+                           th:data-client-id="${client.clientId}"
+                           th:data-client-secret="${client.clientSecret}"
+                           th:data-redirect-uri="${client.redirectUri}"
+                           th:data-auth-endpoint="${client.authorizationEndpoint}"
+                           th:data-token-endpoint="${client.tokenEndpoint}"
+                           th:data-scopes="${#strings.listJoin(client.scopes, ' ')}"
+                           th:data-response-type="${client.responseType}"
+                           th:data-grant-type="${client.grantType}"
+                           th:data-name="${client.name}">
+                    <div class="client-content">
+                        <div>
+                            <div class="client-name" th:text="${client.name}">Client Name</div>
+                            <div class="client-id" th:text="${client.clientId}">client-id</div>
+                        </div>
+                    </div>
+                    <span class="checkmark"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Configuration Form -->
+        <form action="/oauth2/authorize" method="post" id="authorizeForm">
+            <div class="section section-form">
+                <div class="section-title form icon-form">Parâmetros de Autorização</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="clientName">Nome do Cliente</label>
+                        <input type="text" 
+                               id="clientName" 
+                               name="clientName" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].name} : 'Meu Cliente'" 
+                               readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="clientId">Client ID</label>
+                        <input type="text" 
+                               id="clientId" 
+                               name="clientId" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].clientId} : 'my-client'" 
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="clientSecret">Client Secret</label>
+                        <input type="password" 
+                               id="clientSecret" 
+                               name="clientSecret" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].clientSecret} : ''"
+                               placeholder="Será preenchido automaticamente">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="grantType">Grant Type</label>
+                        <input type="text" 
+                               id="grantType" 
+                               name="grantType" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].grantType} : 'authorization_code'" 
+                               readonly>
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label class="form-label" for="redirectUri">Redirect URI</label>
+                        <input type="url" 
+                               id="redirectUri" 
+                               name="redirectUri" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].redirectUri} : 'http://localhost:8081/oauth2/callback'" 
+                               required>
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label class="form-label" for="authorizationEndpoint">Authorization Endpoint</label>
+                        <input type="url" 
+                               id="authorizationEndpoint" 
+                               name="authorizationEndpoint" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].authorizationEndpoint} : 'http://localhost:8080/oauth2/authorize'" 
+                               required>
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label class="form-label" for="tokenEndpoint">Token Endpoint</label>
+                        <input type="url" 
+                               id="tokenEndpoint" 
+                               name="tokenEndpoint" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].tokenEndpoint} : 'http://localhost:8080/oauth2/token'" 
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="responseType">Response Type</label>
+                        <input type="text" 
+                               id="responseType" 
+                               name="responseType" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].responseType} : 'code'" 
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="scope">Scope</label>
+                        <input type="text" 
+                               id="scope" 
+                               name="scope" 
+                               class="form-input"
+                               th:value="${clients != null and !clients.isEmpty()} ? ${#strings.listJoin(clients[0].scopes, ' ')} : 'openid profile'" 
+                               required>
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label class="form-label" for="state">State (opcional)</label>
+                        <input type="text" 
+                               id="state" 
+                               name="state" 
+                               class="form-input" 
+                               placeholder="Valor aleatório para segurança">
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    🔓 Iniciar Autorização
+                </button>
+                <a href="/" class="btn btn-secondary">
+                    ← Voltar ao Menu
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Scripts -->
+    <script th:src="@{/js/common.js}"></script>
+    <script th:src="@{/js/configure.js}"></script>
+</body>
+</html>
+                               
