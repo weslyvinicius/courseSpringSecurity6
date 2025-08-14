@@ -25,6 +25,17 @@ public class InMemoryClientRepository implements ClientRepository {
                         "code",
                         List.of("authorization_code", "refresh_token"),
                         "Google OAuth2"
+                ),
+                new Client(
+                        "api-client",
+                        "api-secret",
+                        "http://localhost:8080/oauth2/authorize",
+                        "http://localhost:8080/oauth2/token",
+                        "http://localhost:8081/oauth2/callback",
+                        List.of("read", "write", "admin"),
+                        null,
+                        List.of("client_credentials"),
+                        "Client Credential OAuth2"
                 )
         );
 

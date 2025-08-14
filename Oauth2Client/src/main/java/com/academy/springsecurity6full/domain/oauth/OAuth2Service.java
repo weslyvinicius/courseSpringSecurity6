@@ -62,6 +62,31 @@ public class OAuth2Service {
         }
     }
 
+    public TokenResponse clientCredentials(String tokenEndpoint, String clientId, String clientSecret,
+                                           String grantType, String scope) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        headers.setBasicAuth(clientId, clientSecret);
+
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("grant_type", grantType);
+
+        if (scope != null && !scope.isEmpty()) {
+            body.add("scope", scope);
+        }
+
+        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<OAuth2TokenResponse> response = restTemplate.exchange(
+                    tokenEndpoint, HttpMethod.POST, request, OAuth2TokenResponse.class);
+
+            return convertToTokenResponse(response.getBody());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to get client credentials token: " + e.getMessage(), e);
+        }
+    }
+
     private TokenResponse convertToTokenResponse(OAuth2TokenResponse oauth2Response) {
         return TokenResponse.of(
                 oauth2Response.getAccessToken(),

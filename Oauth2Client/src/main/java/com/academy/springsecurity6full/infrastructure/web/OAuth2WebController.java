@@ -61,7 +61,7 @@ public class OAuth2WebController {
             log.info("Token exchange successful: {}", token);
 
             // Adicionar o token response como um Map para o template
-            model.addAttribute("tokenResponse", token.toMap());
+            model.addAttribute("tokenResponse", token);
             model.addAttribute("success", true);
             model.addAttribute("flowType", "authorization_code");
 
