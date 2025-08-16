@@ -1,4 +1,4 @@
-package com.academy.springsecurity6full.config.token;
+package com.academy.springsecurity6full.infrastructure.config.token;
 
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;

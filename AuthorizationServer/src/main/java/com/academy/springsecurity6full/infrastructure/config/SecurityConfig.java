@@ -1,4 +1,4 @@
-package com.academy.springsecurity6full.config;
+package com.academy.springsecurity6full.infrastructure.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
