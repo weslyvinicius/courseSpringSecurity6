@@ -152,7 +152,7 @@ public class AuthorizationServerApplication {
 
                 // CONFIGURAÇÕES DO CLIENTE
                 .clientSettings(ClientSettings.builder()
-                        .requireAuthorizationConsent(true)   // Requer consentimento do usuário
+                        .requireAuthorizationConsent(false)   // Requer consentimento do usuário
                         .requireProofKey(false)               // PKCE não obrigatório (pode habilitar para mais segurança)
                         .build())
 
