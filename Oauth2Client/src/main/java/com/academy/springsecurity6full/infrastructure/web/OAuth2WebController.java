@@ -40,44 +40,46 @@ public class OAuth2WebController {
     @PostMapping("/oauth2/authorize")
     public String authorize(@ModelAttribute AuthorizeRequestDTO request ) {
         log.info("Authorizing with request: {}", request);
+        log.info("Flow type - PKCE: {}, Traditional: {}",
+                request.isPKCE(), request.isTraditionalFlow());
 
         // Gerar um estado único e salvar os dados da requisição
         if (request.state() == null || request.state().isEmpty()) {
             request = request.cloneAuthorizeRequestDTO(UUID.randomUUID().toString());
             log.info("Generated new state: {}", request.state());
         }
+
+        // Salvar dados da requisição no state store
         stateStore.save(request.state(), request);
+
+        // Gerar URL de autorização
         var authUrl = authorizeUseCase.execute(request);
         log.info("Redirecting to authorization URL: {}", authUrl);
+
         return "redirect:" + authUrl;
     }
 
     @PostMapping("/oauth2/token")
     public String exchangeToken(@ModelAttribute TokenRequestDTO request, Model model ) {
         log.info("Exchanging token with request: {}", request);
+        log.info("Flow type - PKCE: {}, Traditional: {}",
+                request.isPKCE(), request.isTraditionalFlow());
 
         try {
             TokenResponseDTO token = exchangeCodeForTokenUseCase.execute(request);
             log.info("Token exchange successful: {}", token);
 
-            // Adicionar o token response como um Map para o template
-            model.addAttribute("tokenResponse", token);
-            model.addAttribute("success", true);
-            model.addAttribute("flowType", "authorization_code");
+            // Adicionar dados de sucesso ao modelo
+            populateSuccessModel(model, token, request);
 
-            // Manter dados do request para referência
-            model.addAttribute("authorizationCode", request.code());
-            model.addAttribute("clientId", request.clientId());
-            model.addAttribute("redirectUri", request.redirectUri());
-
+        } catch (IllegalArgumentException e) {
+            log.error("Validation error exchanging token: ", e);
+            populateErrorModel(model, "Validation Error: " + e.getMessage(), request);
         } catch (Exception e) {
             log.error("Error exchanging token: ", e);
-            model.addAttribute("error", e.getMessage());
-            model.addAttribute("authorizationCode", request.code());
-            model.addAttribute("clientId", request.clientId());
-            model.addAttribute("redirectUri", request.redirectUri());
-            model.addAttribute("tokenEndpoint", request.tokenEndpoint());
+            populateErrorModel(model, e.getMessage(), request);
         }
+
         return "result";
     }
 
@@ -105,14 +107,67 @@ public class OAuth2WebController {
         model.addAttribute("authorizationCode", code);
         model.addAttribute("state", state);
 
-        // Recuperar os dados da requisição original usando o estado
-        AuthorizeRequestDTO request = stateStore.get(state);
+        // Recuperar dados da requisição original usando o estado
+        AuthorizeRequestDTO originalRequest = stateStore.get(state);
+        if (originalRequest == null) {
+            log.error("No stored request found for state: {}", state);
+            model.addAttribute("error", "Invalid or expired state parameter");
+            return "error";
+        }
+
+        // Adicionar dados da requisição original ao modelo
+        populateCallbackModel(model, originalRequest);
+
+        // Indicar tipo de fluxo no modelo
+        model.addAttribute("isPKCE", originalRequest.isPKCE());
+        model.addAttribute("isTraditional", originalRequest.isTraditionalFlow());
+
+        return "result";
+    }
+
+    private void populateSuccessModel(Model model, TokenResponseDTO token, TokenRequestDTO request) {
+        model.addAttribute("tokenResponse", token);
+        model.addAttribute("success", true);
+        model.addAttribute("flowType", request.isPKCE() ? "authorization_code_pkce" : "authorization_code");
+        model.addAttribute("authorizationCode", request.code());
         model.addAttribute("clientId", request.clientId());
-        model.addAttribute("clientSecret", request.clientSecret());
+        model.addAttribute("redirectUri", request.redirectUri());
+        model.addAttribute("isPKCE", request.isPKCE());
+    }
+
+    private void populateErrorModel(Model model, String errorMessage, TokenRequestDTO request) {
+        model.addAttribute("error", errorMessage);
+        model.addAttribute("authorizationCode", request.code());
+        model.addAttribute("clientId", request.clientId());
+        model.addAttribute("redirectUri", request.redirectUri());
+        model.addAttribute("tokenEndpoint", request.tokenEndpoint());
+        model.addAttribute("isPKCE", request.isPKCE());
+    }
+
+    private void populateCallbackModel(Model model, AuthorizeRequestDTO request) {
+        model.addAttribute("clientId", request.clientId());
         model.addAttribute("redirectUri", request.redirectUri());
         model.addAttribute("tokenEndpoint", request.tokenEndpoint());
 
-        return "result";
+        // Determinar se é PKCE ou tradicional
+        boolean isPKCE = request.isPKCE();
+        model.addAttribute("isPKCE", isPKCE);
+
+        log.info("Populating callback model - isPKCE: {}, codeVerifier present: {}",
+                isPKCE, request.codeVerifier() != null);
+
+        // Para fluxo tradicional, incluir client_secret
+        if (!isPKCE) {
+            model.addAttribute("clientSecret", request.clientSecret());
+            log.info("Traditional flow - client_secret added to model");
+        }
+
+        // Para PKCE, incluir code_verifier
+        if (isPKCE) {
+            model.addAttribute("codeVerifier", request.codeVerifier());
+            log.info("PKCE flow - codeVerifier added to model: {}",
+                    request.codeVerifier() != null ? "present" : "null");
+        }
     }
 
 }

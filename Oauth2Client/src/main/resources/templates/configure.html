@@ -3,163 +3,391 @@
 <head th:replace="~{fragments/base :: head('OAuth2 Authorization Code - Configuração', 'configure')}">
 </head>
 <body>
-    <div class="main-container">
-        <!-- Header -->
-        <div th:replace="~{fragments/header :: header('🚀 Authorization Code Flow', 'Configure os parâmetros do cliente OAuth2', null)}">
-        </div>
-
-        <!-- Breadcrumb -->
-        <div th:replace="~{fragments/header :: breadcrumb(${breadcrumb})}"></div>
-
-        <!-- Clients Section -->
-        <div class="clients-section" th:if="${clients != null and !clients.isEmpty()}">
-            <div class="clients-title">Clientes Disponíveis</div>
-            <div class="client-selector">
-                <label class="client-option" th:each="client, iterStat : ${clients}">
-                    <input type="radio" 
-                           name="selectedClient" 
-                           th:value="${client.clientId}"
-                           th:checked="${iterStat.first}"
-                           th:data-client-id="${client.clientId}"
-                           th:data-client-secret="${client.clientSecret}"
-                           th:data-redirect-uri="${client.redirectUri}"
-                           th:data-auth-endpoint="${client.authorizationEndpoint}"
-                           th:data-token-endpoint="${client.tokenEndpoint}"
-                           th:data-scopes="${#strings.listJoin(client.scopes, ' ')}"
-                           th:data-response-type="${client.responseType}"
-                           th:data-grant-type="${client.grantType}"
-                           th:data-name="${client.name}">
-                    <div class="client-content">
-                        <div>
-                            <div class="client-name" th:text="${client.name}">Client Name</div>
-                            <div class="client-id" th:text="${client.clientId}">client-id</div>
-                        </div>
-                    </div>
-                    <span class="checkmark"></span>
-                </label>
-            </div>
-        </div>
-
-        <!-- Configuration Form -->
-        <form action="/oauth2/authorize" method="post" id="authorizeForm">
-            <div class="section section-form">
-                <div class="section-title form icon-form">Parâmetros de Autorização</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label" for="clientName">Nome do Cliente</label>
-                        <input type="text" 
-                               id="clientName" 
-                               name="clientName" 
-                               class="form-input"
-                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].name} : 'Meu Cliente'" 
-                               readonly>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="clientId">Client ID</label>
-                        <input type="text" 
-                               id="clientId" 
-                               name="clientId" 
-                               class="form-input"
-                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].clientId} : 'my-client'" 
-                               required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="clientSecret">Client Secret</label>
-                        <input type="password" 
-                               id="clientSecret" 
-                               name="clientSecret" 
-                               class="form-input"
-                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].clientSecret} : ''"
-                               placeholder="Será preenchido automaticamente">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="grantType">Grant Type</label>
-                        <input type="text" 
-                               id="grantType" 
-                               name="grantType" 
-                               class="form-input"
-                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].grantType} : 'authorization_code'" 
-                               readonly>
-                    </div>
-
-                    <div class="form-group form-group-full">
-                        <label class="form-label" for="redirectUri">Redirect URI</label>
-                        <input type="url" 
-                               id="redirectUri" 
-                               name="redirectUri" 
-                               class="form-input"
-                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].redirectUri} : 'http://localhost:8081/oauth2/callback'" 
-                               required>
-                    </div>
-
-                    <div class="form-group form-group-full">
-                        <label class="form-label" for="authorizationEndpoint">Authorization Endpoint</label>
-                        <input type="url" 
-                               id="authorizationEndpoint" 
-                               name="authorizationEndpoint" 
-                               class="form-input"
-                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].authorizationEndpoint} : 'http://localhost:8080/oauth2/authorize'" 
-                               required>
-                    </div>
-
-                    <div class="form-group form-group-full">
-                        <label class="form-label" for="tokenEndpoint">Token Endpoint</label>
-                        <input type="url" 
-                               id="tokenEndpoint" 
-                               name="tokenEndpoint" 
-                               class="form-input"
-                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].tokenEndpoint} : 'http://localhost:8080/oauth2/token'" 
-                               required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="responseType">Response Type</label>
-                        <input type="text" 
-                               id="responseType" 
-                               name="responseType" 
-                               class="form-input"
-                               th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].responseType} : 'code'" 
-                               required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="scope">Scope</label>
-                        <input type="text" 
-                               id="scope" 
-                               name="scope" 
-                               class="form-input"
-                               th:value="${clients != null and !clients.isEmpty()} ? ${#strings.listJoin(clients[0].scopes, ' ')} : 'openid profile'" 
-                               required>
-                    </div>
-
-                    <div class="form-group form-group-full">
-                        <label class="form-label" for="state">State (opcional)</label>
-                        <input type="text" 
-                               id="state" 
-                               name="state" 
-                               class="form-input" 
-                               placeholder="Valor aleatório para segurança">
-                    </div>
-                </div>
-            </div>
-
-            <div class="action-buttons">
-                <button type="submit" class="btn btn-primary" id="submitBtn">
-                    🔓 Iniciar Autorização
-                </button>
-                <a href="/" class="btn btn-secondary">
-                    ← Voltar ao Menu
-                </a>
-            </div>
-        </form>
+<div class="main-container">
+    <!-- Header -->
+    <div th:replace="~{fragments/header :: header('🚀 Authorization Code Flow', 'Configure os parâmetros do cliente OAuth2', null)}">
     </div>
 
-    <!-- Scripts -->
-    <script th:src="@{/js/common.js}"></script>
-    <script th:src="@{/js/configure.js}"></script>
+    <!-- Breadcrumb -->
+    <div th:replace="~{fragments/header :: breadcrumb(${breadcrumb})}"></div>
+
+    <!-- Clients Section -->
+    <div class="clients-section" th:if="${clients != null and !clients.isEmpty()}">
+        <div class="clients-title">Clientes Disponíveis</div>
+        <div class="client-selector">
+            <label class="client-option" th:each="client, iterStat : ${clients}">
+                <input type="radio"
+                       name="selectedClient"
+                       th:value="${client.clientId}"
+                       th:checked="${iterStat.first}"
+                       th:data-client-id="${client.clientId}"
+                       th:data-client-secret="${client.clientSecret}"
+                       th:data-redirect-uri="${client.redirectUri}"
+                       th:data-auth-endpoint="${client.authorizationEndpoint}"
+                       th:data-token-endpoint="${client.tokenEndpoint}"
+                       th:data-scopes="${#strings.listJoin(client.scopes, ' ')}"
+                       th:data-response-type="${client.responseType}"
+                       th:data-grant-type="${client.grantType}"
+                       th:data-name="${client.name}">
+                <div class="client-content">
+                    <div>
+                        <div class="client-name" th:text="${client.name}">Client Name</div>
+                        <div class="client-id" th:text="${client.clientId}">client-id</div>
+                    </div>
+                </div>
+                <span class="checkmark"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Flow Type Selection -->
+    <div class="section section-form">
+        <div class="section-title form icon-form">Tipo de Fluxo OAuth2</div>
+        <div class="flow-selector">
+            <label class="flow-option">
+                <input type="radio" name="flowType" value="traditional" checked>
+                <div class="flow-content">
+                    <div class="flow-title">🔒 Fluxo Tradicional</div>
+                    <div class="flow-description">Usa Client Secret para autenticação</div>
+                </div>
+            </label>
+            <label class="flow-option">
+                <input type="radio" name="flowType" value="pkce">
+                <div class="flow-content">
+                    <div class="flow-title">🛡️ Fluxo PKCE</div>
+                    <div class="flow-description">Proof Key for Code Exchange (mais seguro para SPAs)</div>
+                </div>
+            </label>
+        </div>
+    </div>
+
+    <!-- Configuration Form -->
+    <form action="/oauth2/authorize" method="post" id="authorizeForm">
+        <div class="section section-form">
+            <div class="section-title form icon-form">Parâmetros de Autorização</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label" for="clientName">Nome do Cliente</label>
+                    <input type="text"
+                           id="clientName"
+                           name="clientName"
+                           class="form-input"
+                           th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].name} : 'Meu Cliente'"
+                           readonly>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="clientId">Client ID</label>
+                    <input type="text"
+                           id="clientId"
+                           name="clientId"
+                           class="form-input"
+                           th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].clientId} : 'my-client'"
+                           required>
+                </div>
+
+                <!-- Traditional Flow Fields -->
+                <div class="form-group traditional-only">
+                    <label class="form-label" for="clientSecret">Client Secret</label>
+                    <input type="password"
+                           id="clientSecret"
+                           name="clientSecret"
+                           class="form-input"
+                           th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].clientSecret} : ''"
+                           placeholder="Será preenchido automaticamente">
+                </div>
+
+                <!-- PKCE Fields -->
+                <div class="form-group pkce-only" style="display: none;">
+                    <label class="form-label" for="codeVerifier">Code Verifier</label>
+                    <input type="text"
+                           id="codeVerifier"
+                           name="codeVerifier"
+                           class="form-input"
+                           readonly>
+                </div>
+
+                <div class="form-group pkce-only" style="display: none;">
+                    <label class="form-label" for="codeChallenge">Code Challenge</label>
+                    <input type="text"
+                           id="codeChallenge"
+                           name="codeChallenge"
+                           class="form-input"
+                           readonly>
+                </div>
+
+                <div class="form-group pkce-only" style="display: none;">
+                    <label class="form-label" for="codeChallengeMethod">Challenge Method</label>
+                    <input type="text"
+                           id="codeChallengeMethod"
+                           name="codeChallengeMethod"
+                           class="form-input"
+                           value="S256"
+                           readonly>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="grantType">Grant Type</label>
+                    <input type="text"
+                           id="grantType"
+                           name="grantType"
+                           class="form-input"
+                           th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].grantType} : 'authorization_code'"
+                           readonly>
+                </div>
+
+                <div class="form-group form-group-full">
+                    <label class="form-label" for="redirectUri">Redirect URI</label>
+                    <input type="url"
+                           id="redirectUri"
+                           name="redirectUri"
+                           class="form-input"
+                           th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].redirectUri} : 'http://localhost:8081/oauth2/callback'"
+                           required>
+                </div>
+
+                <div class="form-group form-group-full">
+                    <label class="form-label" for="authorizationEndpoint">Authorization Endpoint</label>
+                    <input type="url"
+                           id="authorizationEndpoint"
+                           name="authorizationEndpoint"
+                           class="form-input"
+                           th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].authorizationEndpoint} : 'http://localhost:8080/oauth2/authorize'"
+                           required>
+                </div>
+
+                <div class="form-group form-group-full">
+                    <label class="form-label" for="tokenEndpoint">Token Endpoint</label>
+                    <input type="url"
+                           id="tokenEndpoint"
+                           name="tokenEndpoint"
+                           class="form-input"
+                           th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].tokenEndpoint} : 'http://localhost:8080/oauth2/token'"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="responseType">Response Type</label>
+                    <input type="text"
+                           id="responseType"
+                           name="responseType"
+                           class="form-input"
+                           th:value="${clients != null and !clients.isEmpty()} ? ${clients[0].responseType} : 'code'"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="scope">Scope</label>
+                    <input type="text"
+                           id="scope"
+                           name="scope"
+                           class="form-input"
+                           th:value="${clients != null and !clients.isEmpty()} ? ${#strings.listJoin(clients[0].scopes, ' ')} : 'openid profile'"
+                           required>
+                </div>
+
+                <div class="form-group form-group-full">
+                    <label class="form-label" for="state">State (opcional)</label>
+                    <input type="text"
+                           id="state"
+                           name="state"
+                           class="form-input"
+                           placeholder="Valor aleatório para segurança">
+                </div>
+            </div>
+        </div>
+
+        <!-- PKCE Actions -->
+        <div class="pkce-actions pkce-only" style="display: none;">
+            <button type="button" class="btn btn-info" id="generatePkceBtn">
+                🎲 Gerar Valores PKCE
+            </button>
+            <div class="loading" id="pkceLoading" style="display: none;">
+                <div class="spinner"></div>
+                <span>Gerando valores PKCE...</span>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+                🔐 Iniciar Autorização
+            </button>
+            <a href="/" class="btn btn-secondary">
+                ← Voltar ao Menu
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Scripts -->
+<script th:src="@{/js/common.js}"></script>
+<script th:src="@{/js/configure.js}"></script>
+
+<style>
+    /* Flow Selector Styles */
+    .flow-selector {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .flow-option {
+        flex: 1;
+        position: relative;
+        cursor: pointer;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 15px;
+        transition: all 0.3s ease;
+    }
+
+    .flow-option:hover {
+        border-color: #3182ce;
+        box-shadow: 0 2px 8px rgba(49, 130, 206, 0.1);
+    }
+
+    .flow-option input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+    }
+
+    .flow-option input[type="radio"]:checked + .flow-content {
+        color: #3182ce;
+    }
+
+    .flow-option input[type="radio"]:checked ~ * {
+        border-color: #3182ce;
+    }
+
+    .flow-option input[type="radio"]:checked {
+        ~ .flow-content::after {
+            content: "✓";
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #3182ce;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    }
+
+    .flow-content {
+        position: relative;
+    }
+
+    .flow-title {
+        font-weight: bold;
+        margin-bottom: 5px;
+        font-size: 16px;
+    }
+
+    .flow-description {
+        font-size: 14px;
+        color: #6b7280;
+    }
+
+    /* PKCE Actions */
+    .pkce-actions {
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    .loading {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .loading.show {
+        display: flex;
+    }
+
+    .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #3182ce;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const flowOptions = document.querySelectorAll('input[name="flowType"]');
+        const traditionalFields = document.querySelectorAll('.traditional-only');
+        const pkceFields = document.querySelectorAll('.pkce-only');
+        const generatePkceBtn = document.getElementById('generatePkceBtn');
+        const pkceLoading = document.getElementById('pkceLoading');
+
+        // Handle flow type change
+        flowOptions.forEach(option => {
+            option.addEventListener('change', function() {
+                const isTraditional = this.value === 'traditional';
+
+                traditionalFields.forEach(field => {
+                    field.style.display = isTraditional ? 'block' : 'none';
+                    const input = field.querySelector('input');
+                    if (input) {
+                        input.required = isTraditional;
+                    }
+                });
+
+                pkceFields.forEach(field => {
+                    field.style.display = isTraditional ? 'none' : 'block';
+                    const input = field.querySelector('input');
+                    if (input && input.name !== 'codeChallengeMethod') {
+                        input.required = !isTraditional;
+                    }
+                });
+            });
+        });
+
+        // Generate PKCE values
+        generatePkceBtn.addEventListener('click', async function() {
+            pkceLoading.classList.add('show');
+
+            try {
+                const response = await fetch('/api/pkce/generate');
+                const data = await response.json();
+
+                document.getElementById('codeVerifier').value = data.codeVerifier;
+                document.getElementById('codeChallenge').value = data.codeChallenge;
+                document.getElementById('codeChallengeMethod').value = data.codeChallengeMethod;
+
+                console.log('PKCE values generated successfully');
+
+            } catch (error) {
+                console.error('Error generating PKCE values:', error);
+                alert('Erro ao gerar valores PKCE');
+            } finally {
+                pkceLoading.classList.remove('show');
+            }
+        });
+
+        // Auto-generate PKCE when switching to PKCE flow
+        document.querySelector('input[value="pkce"]').addEventListener('change', function() {
+            if (this.checked) {
+                setTimeout(() => {
+                    generatePkceBtn.click();
+                }, 100);
+            }
+        });
+    });
+</script>
 </body>
 </html>
-                               

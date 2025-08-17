@@ -4,6 +4,7 @@ import com.academy.springsecurity6full.domain.client.Client;
 import com.academy.springsecurity6full.domain.client.ClientRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,6 +37,17 @@ public class InMemoryClientRepository implements ClientRepository {
                         null,
                         List.of("client_credentials"),
                         "Client Credential OAuth2"
+                ),
+                new Client(
+                        "pkce-client",
+                        null,
+                        "http://localhost:8080/oauth2/authorize",
+                        "http://localhost:8080/oauth2/token",
+                        "http://localhost:8081/oauth2/callback",
+                        List.of("openid", "profile", "email", "read", "write"),
+                        null,
+                        List.of("authorization_code", "refresh_token"),
+                        "Public SPA/Mobile Application"
                 )
         );
 

@@ -97,6 +97,14 @@ public class AuthorizationServerApplication {
                 log.info("Cliente 'my-client' já existe no banco de dados.");
             }
 
+            // NOVO: Cliente público com PKCE obrigatório
+            if (customRegisteredClientRepository.findByClientId("pkce-client") == null) {
+                createAndSavePublicClientWithPKCE(customRegisteredClientRepository);
+                log.info("Cliente público 'pkce-client' com PKCE criado com sucesso!");
+            } else {
+                log.info("Cliente público 'pkce-client' já existe no banco de dados.");
+            }
+
             if (customRegisteredClientRepository.findByClientId("api-client") == null) {
                 createAndSaveClientCredentialsClient(customRegisteredClientRepository, passwordEncoder);
                 log.info("Cliente 'api-client' criado com sucesso!");
@@ -153,7 +161,7 @@ public class AuthorizationServerApplication {
                 // CONFIGURAÇÕES DO CLIENTE
                 .clientSettings(ClientSettings.builder()
                         .requireAuthorizationConsent(false)   // Requer consentimento do usuário
-                        .requireProofKey(false)               // PKCE não obrigatório (pode habilitar para mais segurança)
+                        .requireProofKey(false)               // PKCE não obrigatório sendo opcional (pode habilitar para mais segurança)
                         .build())
 
                 // CONFIGURAÇÕES DE TOKEN
@@ -166,6 +174,63 @@ public class AuthorizationServerApplication {
                 .build();
 
         customRegisteredClientRepository.save(authorizationCodeClient);
+    }
+
+    /**
+     * NOVO MÉTODO: Cliente público com PKCE obrigatório
+     * Este é o padrão recomendado para SPAs (Single Page Applications)
+     * e aplicações móveis que não conseguem manter segredos de forma segura
+     */
+    private void createAndSavePublicClientWithPKCE(
+            CustomRegisteredClientRepository customRegisteredClientRepository
+    ) {
+        RegisteredClient publicClient = RegisteredClient
+                .withId(UUID.randomUUID().toString())
+
+                // CREDENCIAIS DO CLIENTE PÚBLICO
+                .clientId("pkce-client")  // ID público do cliente
+                // NOTA: Clientes públicos NÃO têm client_secret
+
+                // NOME DO CLIENTE
+                .clientName("Public SPA/Mobile Application")
+
+                // ESCOPOS PERMITIDOS
+                .scope(OidcScopes.OPENID)
+                .scope(OidcScopes.PROFILE)
+                .scope(OidcScopes.EMAIL)
+                .scope("read")
+                .scope("write")
+
+                // REDIRECT URIs para SPA/Mobile
+                .redirectUri("http://localhost:8081/oauth2/callback")
+                .redirectUri("http://127.0.0.1:8081/oauth2/callback")
+
+                // POST LOGOUT REDIRECT URIs
+                .postLogoutRedirectUri("http://localhost:8081/")
+
+                // MÉTODO DE AUTENTICAÇÃO - NENHUM (cliente público)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+
+                // TIPOS DE GRANT PERMITIDOS
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+
+                // CONFIGURAÇÕES DO CLIENTE - PKCE OBRIGATÓRIO
+                .clientSettings(ClientSettings.builder()
+                        .requireAuthorizationConsent(false)
+                        .requireProofKey(true)                // ✅ PKCE OBRIGATÓRIO para cliente público
+                        .build())
+
+                // CONFIGURAÇÕES DE TOKEN
+                .tokenSettings(TokenSettings.builder()
+                        .accessTokenTimeToLive(Duration.ofMinutes(30))   // Token mais curto para cliente público
+                        .refreshTokenTimeToLive(Duration.ofHours(8))     // Refresh token com duração menor
+                        .reuseRefreshTokens(false)                       // Não reutiliza refresh tokens (mais seguro)
+                        .build())
+
+                .build();
+
+        customRegisteredClientRepository.save(publicClient);
     }
 
     private void createAndSaveClientCredentialsClient(

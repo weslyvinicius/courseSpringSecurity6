@@ -88,7 +88,23 @@
 
     <!-- Token Exchange Form -->
     <div class="section section-form" th:if="${authorizationCode != null and !#strings.isEmpty(authorizationCode) and tokenResponse == null and error == null}">
-        <div class="section-title form icon-refresh">Trocar Código por Token</div>
+        <div class="section-title form icon-refresh">
+            <span th:if="${isPKCE}">🛡️ Trocar Código por Token (PKCE)</span>
+            <span th:unless="${isPKCE}">🔒 Trocar Código por Token (Tradicional)</span>
+        </div>
+
+        <!-- Flow Type Indicator -->
+        <div class="flow-indicator">
+            <div class="flow-badge pkce" th:if="${isPKCE != null and isPKCE}">
+                <span class="flow-emoji">🛡️</span>
+                <span class="flow-text">Fluxo PKCE Ativo</span>
+            </div>
+            <div class="flow-badge traditional" th:if="${isPKCE == null or !isPKCE}">
+                <span class="flow-emoji">🔒</span>
+                <span class="flow-text">Fluxo Tradicional Ativo</span>
+            </div>
+        </div>
+
         <form action="/oauth2/token" method="post" id="tokenForm">
             <div class="form-grid">
                 <div class="form-group">
@@ -102,15 +118,16 @@
                            required>
                 </div>
 
-                <div class="form-group">
+                <!-- Traditional Flow: Client Secret -->
+                <div class="form-group traditional-field" th:if="${isPKCE == null or !isPKCE}">
                     <label class="form-label" for="tokenClientSecret">Client Secret</label>
                     <input type="password"
                            id="tokenClientSecret"
                            name="clientSecret"
                            class="form-input"
-                           value=""
+                           th:value="${clientSecret}"
                            placeholder="Insira o client secret"
-                           required>
+                           th:required="${isPKCE == null or !isPKCE}">
                 </div>
 
                 <div class="form-group">
@@ -122,6 +139,18 @@
                            th:value="${authorizationCode}"
                            readonly
                            required>
+                </div>
+
+                <!-- PKCE Flow: Code Verifier -->
+                <div class="form-group pkce-field" th:if="${isPKCE != null and isPKCE}">
+                    <label class="form-label" for="tokenCodeVerifier">Code Verifier</label>
+                    <input type="text"
+                           id="tokenCodeVerifier"
+                           name="codeVerifier"
+                           class="form-input"
+                           th:value="${codeVerifier}"
+                           readonly
+                           th:required="${isPKCE != null and isPKCE}">
                 </div>
 
                 <div class="form-group">
@@ -158,30 +187,63 @@
 
             <div class="loading" id="loading">
                 <div class="spinner"></div>
-                <span>Trocando código por token...</span>
+                <span th:if="${isPKCE}">Trocando código por token usando PKCE...</span>
+                <span th:unless="${isPKCE}">Trocando código por token...</span>
             </div>
 
             <div class="action-buttons">
                 <button type="submit" class="btn btn-success" id="exchangeBtn">
-                    🎯 Trocar por Token
+                    <span th:if="${isPKCE}">🛡️ Trocar por Token (PKCE)</span>
+                    <span th:unless="${isPKCE}">🎯 Trocar por Token</span>
                 </button>
             </div>
         </form>
     </div>
 
-    <!-- Flow Explanation -->
-    <div class="flow-explanation">
-        <h4>📚 O que aconteceu:</h4>
-        <ol>
-            <li><strong>Authorization Request:</strong> Você foi redirecionado para o Authorization Server</li>
-            <li><strong>User Authentication:</strong> Fez login com suas credenciais</li>
-            <li><strong>Authorization Grant:</strong> O servidor gerou um Authorization Code</li>
-            <li th:if="${tokenResponse != null}"><strong>Token Request:</strong> O código foi trocado por tokens com sucesso ✅</li>
-            <li th:if="${error != null and authorizationCode != null}"><strong>Token Request:</strong> Tentativa de trocar código por tokens (com erro) ❌</li>
-            <li th:if="${tokenResponse == null and authorizationCode != null and error == null}"><strong>Token Request:</strong> Aguardando troca do código por tokens ⏳</li>
-            <li th:if="${tokenResponse != null}"><strong>Access Granted:</strong> Agora você tem tokens para acessar recursos! 🎉</li>
-        </ol>
-    </div>
+    <style>
+        /* Flow Indicator Styles */
+        .flow-indicator {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .flow-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .flow-badge.pkce {
+            background-color: #e6f3ff;
+            color: #0066cc;
+            border: 1px solid #b3d9ff;
+        }
+
+        .flow-badge.traditional {
+            background-color: #f0f9f0;
+            color: #006600;
+            border: 1px solid #b3e6b3;
+        }
+
+        .flow-emoji {
+            font-size: 16px;
+        }
+
+        /* Field-specific styling */
+        .pkce-field .form-label::after {
+            content: " 🛡️";
+            opacity: 0.7;
+        }
+
+        .traditional-field .form-label::after {
+            content: " 🔒";
+            opacity: 0.7;
+        }
+    </style>
 
     <!-- Navigation Buttons -->
     <div th:replace="~{fragments/header :: navigation}"></div>

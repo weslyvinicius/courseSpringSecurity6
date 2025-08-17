@@ -62,6 +62,35 @@ public class OAuth2Service {
         }
     }
 
+    /**
+     * Novo método para trocar authorization code por token usando PKCE
+     * Não usa client_secret, apenas client_id e code_verifier
+     */
+    public TokenResponse exchangeCodeForTokenWithPKCE(String tokenEndpoint, String clientId,
+                                                      String code, String redirectUri, String grantType,
+                                                      String codeVerifier) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("grant_type", grantType);
+        body.add("client_id", clientId);
+        body.add("code", code);
+        body.add("redirect_uri", redirectUri);
+        body.add("code_verifier", codeVerifier);
+
+        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<OAuth2TokenResponse> response = restTemplate.exchange(
+                    tokenEndpoint, HttpMethod.POST, request, OAuth2TokenResponse.class);
+
+            return convertToTokenResponse(response.getBody());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to exchange code for token with PKCE: " + e.getMessage(), e);
+        }
+    }
+
     public TokenResponse clientCredentials(String tokenEndpoint, String clientId, String clientSecret,
                                            String grantType, String scope) {
         HttpHeaders headers = new HttpHeaders();
